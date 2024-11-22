@@ -11,14 +11,14 @@ describe("anchor-student", () => {
   anchor.setProvider(provider);
 
   const program = anchor.workspace.AnchorStudent as Program<AnchorStudent>;
-  console.log("wallet address: ", provider.wallet.publicKey);
+  console.log("wallet address: ", provider.wallet.publicKey.toBase58());
 
   const studentInfo = {
-    name: "Just a test movie",
+    name: "Jesse",
     age: 20,
-    description: "我是测试学生",
+    description: "I am a student",
   };
- 
+
   const [studentInfoPda] = anchor.web3.PublicKey.findProgramAddressSync(
     [Buffer.from(NAME_SEED), Buffer.from(studentInfo.name), provider.wallet.publicKey.toBuffer()],
     program.programId,
@@ -30,7 +30,7 @@ describe("anchor-student", () => {
     console.log("Your transaction signature", tx);
 
     const account = await program.account.studentInfo.fetch(studentInfoPda);
-    console.log("Added account: ", account);
+    console.log("Added account info: ", account);
     expect(studentInfo.name === account.name);
     expect(studentInfo.age === account.age);
     expect(studentInfo.description === account.description);
@@ -38,11 +38,17 @@ describe("anchor-student", () => {
   });
 
   it("Update a student info", async () => {
-    const tx = await program.methods.updateStudentInfo(studentInfo.name, 18, studentInfo.description).rpc();
+    let updateStudentInfo = {
+      name: studentInfo.name,
+      age: 18,
+      description: "I am a gril student",
+    };
+
+    const tx = await program.methods.updateStudentInfo(updateStudentInfo.name, updateStudentInfo.age, updateStudentInfo.description).rpc();
     console.log("Your transaction signature", tx);
 
     const account = await program.account.studentInfo.fetch(studentInfoPda);
-    console.log("Updated account: ", account);
+    console.log("Updated account info: ", account);
     expect(studentInfo.name === account.name);
     expect(18 === account.age);
     expect(studentInfo.description === account.description);
