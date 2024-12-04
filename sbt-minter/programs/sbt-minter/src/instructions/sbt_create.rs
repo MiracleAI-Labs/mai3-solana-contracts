@@ -37,7 +37,7 @@ pub struct CreateSbtMint<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn create_mint(ctx: Context<CreateSbtMint>, token_name: String, token_symbol: String, token_uri: String) -> Result<()> {
+pub fn create_sbt_token_mint(ctx: Context<CreateSbtMint>, token_name: String, token_symbol: String, token_uri: String) -> Result<()> {
     create_metadata_accounts_v3(
         CpiContext::new(
             ctx.accounts.token_metadata_program.to_account_info(),
