@@ -4,6 +4,7 @@ use anchor_lang::prelude::*;
 #[derive(InitSpace)] // automatically calculate the space required for the struct
 pub struct Admin {
     pub signer: Pubkey,
+    pub feeAccount: Pubkey,
 }
 
 impl Admin {

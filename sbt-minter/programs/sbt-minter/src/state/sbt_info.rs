@@ -13,6 +13,9 @@ pub struct SbtInfo {
     pub discordID: String, // 4 bytes + 50 bytes
     #[max_len(50)]
     pub telegramID: String, // 4 bytes + 50 bytes
+    pub solFee: u64,
+    pub usdFee: u64,
+    pub maiFee: u64,
     pub score: u64,
     pub minted: bool,
 }
