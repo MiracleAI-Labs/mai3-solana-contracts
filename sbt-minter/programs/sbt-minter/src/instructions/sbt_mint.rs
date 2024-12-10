@@ -56,6 +56,7 @@ pub fn mint_sbt_token(
     twitterID: String, 
     discordID: String, 
     telegramID: String,
+    score: u64,
     signature: [u8; 64],
     recovery_id: u8
 ) -> Result<()> {
@@ -65,7 +66,7 @@ pub fn mint_sbt_token(
         return err!(SbtMinterError::InvalidLength);
     }
 
-    let msg_hash = keccak(&[name.as_ref(), photo.as_ref(), twitterID.as_ref(), discordID.as_ref(), telegramID.as_ref()]);
+    let msg_hash = keccak(&[name.as_ref(), photo.as_ref(), twitterID.as_ref(), discordID.as_ref(), telegramID.as_ref(), score.to_le_bytes().as_ref()]);
     let pk = secp256k1_recover(msg_hash.as_ref(), recovery_id, signature.as_ref())
         .map_err(|_e| SbtMinterError::InvalidSignature)?;
     require!(keccak(&[pk.0.as_ref()]).0 == ctx.accounts.admin.signer, SbtMinterError::InvalidSigner);
@@ -76,6 +77,7 @@ pub fn mint_sbt_token(
     sbt_info.twitterID = twitterID;
     sbt_info.discordID = discordID;
     sbt_info.telegramID = telegramID;
+    sbt_info.score = score;
     sbt_info.minted = true;
 
     mint_to(
@@ -87,8 +89,37 @@ pub fn mint_sbt_token(
                 authority: ctx.accounts.payer.to_account_info(),
             },
         ),
-        5,
+        1,
     )?;
+
+    Ok(())
+}
+
+pub fn update_sbt_info(
+    ctx: Context<SbtMint>, 
+    name: String, 
+    photo: String, 
+    twitterID: String, 
+    discordID: String, 
+    telegramID: String,
+    score: u64,
+    signature: [u8; 64],
+    recovery_id: u8
+) -> Result<()> {
+    require!(ctx.accounts.sbt_info.minted == true, SbtMinterError::NotMinted);
+
+    let msg_hash = keccak(&[name.as_ref(), photo.as_ref(), twitterID.as_ref(), discordID.as_ref(), telegramID.as_ref(), score.to_le_bytes().as_ref()]);
+    let pk = secp256k1_recover(msg_hash.as_ref(), recovery_id, signature.as_ref())
+        .map_err(|_e| SbtMinterError::InvalidSignature)?;
+    require!(keccak(&[pk.0.as_ref()]).0 == ctx.accounts.admin.signer, SbtMinterError::InvalidSigner);
+
+    let sbt_info = &mut ctx.accounts.sbt_info;
+    sbt_info.name = name;
+    sbt_info.photo = photo;
+    sbt_info.twitterID = twitterID;
+    sbt_info.discordID = discordID;
+    sbt_info.telegramID = telegramID;
+    sbt_info.score = score;
 
     Ok(())
 }

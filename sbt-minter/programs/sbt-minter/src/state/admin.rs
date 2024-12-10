@@ -5,3 +5,7 @@ use anchor_lang::prelude::*;
 pub struct Admin {
     pub signer: Pubkey,
 }
+
+impl Admin {
+    pub const INIT_SPACE: usize = 8 + 32;
+}

@@ -13,6 +13,10 @@ pub struct SbtInfo {
     pub discordID: String, // 4 bytes + 50 bytes
     #[max_len(50)]
     pub telegramID: String, // 4 bytes + 50 bytes
-
+    pub score: u64,
     pub minted: bool,
+}
+
+impl SbtInfo {
+    pub const INIT_SPACE: usize = 8 + 200 + 200 + 50 + 50 + 50 + 8 + 1;
 }

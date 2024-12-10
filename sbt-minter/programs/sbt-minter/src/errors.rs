@@ -16,4 +16,7 @@ pub enum SbtMinterError {
 
     #[msg("Already minted")]
     AlreadyMinted,
+
+    #[msg("Not minted")]
+    NotMinted,
 }
