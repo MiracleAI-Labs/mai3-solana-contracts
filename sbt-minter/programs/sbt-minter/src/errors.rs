@@ -7,4 +7,13 @@ pub enum SbtMinterError {
 
     #[msg("Invalid length")]
     InvalidLength,
+
+    #[msg("Invalid signature")]
+    InvalidSignature,
+
+    #[msg("Invalid signer")]
+    InvalidSigner,
+
+    #[msg("Already minted")]
+    AlreadyMinted,
 }

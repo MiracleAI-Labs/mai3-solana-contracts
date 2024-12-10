@@ -1,0 +1,9 @@
+[package]
+name = "sing-cmd"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+secp256k1 = {version="0.24.0", features=["rand-std", "recovery", "bitcoin_hashes"]}
+hex = "0.4.3"
+solana-sdk = "~1.10.34"

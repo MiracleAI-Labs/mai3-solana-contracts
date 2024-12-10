@@ -16,6 +16,7 @@ describe('Bankrun example', () => {
   let payer: anchor.Wallet;
   let program: anchor.Program<SbtMinter>;
   let mintKeypair: Keypair;
+  let adminKeypair: Keypair;
   let context: any;
 
   before(async () => {
@@ -32,6 +33,7 @@ describe('Bankrun example', () => {
     payer = provider.wallet as anchor.Wallet;
     program = new anchor.Program(IDL, provider);
     mintKeypair = new Keypair();
+    adminKeypair = new Keypair();
   });
 
   const metadata = {
@@ -75,8 +77,8 @@ describe('Bankrun example', () => {
         mintAuthority: payer.publicKey,
         recipient: payer.publicKey,
         mintAccount: mintKeypair.publicKey,
-        associatedTokenAccount: tokenAccountATA,
-      })
+        tokenAccount: tokenAccountATA,
+      }).signers([adminKeypair])
       .rpc();
 
     console.log('Success!');
