@@ -19,7 +19,7 @@ pub struct SbtMint<'info> {
 
     #[account(
         mut,
-        seeds = [b"owner"],
+        seeds = [b"admin"],
         bump
     )]
     pub admin: Account<'info, Admin>,
