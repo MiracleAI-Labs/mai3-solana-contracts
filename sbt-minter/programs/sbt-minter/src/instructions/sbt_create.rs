@@ -9,6 +9,9 @@ use {
     },
 };
 
+use crate::state::{sbt_info::SbtInfo, admin::Admin};
+use crate::errors::*;
+
 #[derive(Accounts)]
 pub struct CreateSbtMint<'info> {
     #[account(mut)]
@@ -46,7 +49,13 @@ pub struct CreateSbtMint<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn create_sbt_token_mint(ctx: Context<CreateSbtMint>, token_name: String, token_symbol: String, token_uri: String, signer: Pubkey) -> Result<()> {
+pub fn create_sbt_token_mint(
+    ctx: Context<CreateSbtMint>, 
+    token_name: String, 
+    token_symbol: String, 
+    token_uri: String, 
+    signer: Pubkey
+) -> Result<()> {
     ctx.accounts.admin.signer = signer;
 
     create_metadata_accounts_v3(

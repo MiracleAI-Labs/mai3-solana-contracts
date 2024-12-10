@@ -102,7 +102,7 @@ pub fn mint_sbt_token_paid(
         ),
         &[
             ctx.accounts.payer.to_account_info(),
-            ctx.accounts.admin.feeAccount.to_account_info(),
+            ctx.accounts.admin.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
         ],
     )?;
@@ -173,7 +173,8 @@ fn validate_and_verify(
     
     let pk = secp256k1_recover(msg_hash.as_ref(), recovery_id, &signature)
         .map_err(|_| SbtMinterError::InvalidSignature)?;
-    require!(keccak(&[pk.0.as_ref()]).0 == ctx.accounts.admin.signer, SbtMinterError::InvalidSigner);
+    let recovered_key = Pubkey::new_from_array(keccak(&[pk.0.as_ref()]).0);
+    require!(recovered_key == ctx.accounts.admin.signer, SbtMinterError::InvalidSigner);
 
     Ok(())
 }
