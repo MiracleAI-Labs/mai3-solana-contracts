@@ -8,18 +8,18 @@ pub struct SbtInfo {
     #[max_len(200)] // set a max length for the string
     pub photo: String, // 4 bytes + 50 bytes
     #[max_len(50)] // set a max length for the string
-    pub twitterID: String, // 4 bytes + 50 bytes
+    pub twitter_id: String, // 4 bytes + 50 bytes
     #[max_len(50)]
-    pub discordID: String, // 4 bytes + 50 bytes
+    pub discord_id: String, // 4 bytes + 50 bytes
     #[max_len(50)]
-    pub telegramID: String, // 4 bytes + 50 bytes
-    pub solFee: u64,
-    pub usdFee: u64,
-    pub maiFee: u64,
+    pub telegram_id: String, // 4 bytes + 50 bytes
+    pub sol_fee: u64,
+    pub usd_fee: u64,
+    pub mai_fee: u64,
     pub score: u64,
     pub minted: bool,
 }
 
 impl SbtInfo {
-    pub const INIT_SPACE: usize = 8 + 200 + 200 + 50 + 50 + 50 + 8 + 1;
+    pub const INIT_SPACE: usize = 8 + 200 + 200 + 50 + 50 + 50 + 8 + 8 + 8 + 8 + 1;
 }

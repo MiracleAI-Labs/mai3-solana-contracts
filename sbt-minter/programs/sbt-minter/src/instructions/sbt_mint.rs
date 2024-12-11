@@ -22,7 +22,11 @@ pub struct SbtMint<'info> {
     #[account(mut, seeds = [b"admin"], bump)]
     pub admin: Account<'info, Admin>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"mint"],
+        bump
+    )]
     pub mint_account: Account<'info, Mint>,
 
     #[account(
@@ -62,7 +66,7 @@ pub fn mint_sbt_token_free(
 
     let sbt_info = &mut ctx.accounts.sbt_info;
     update_sbt_info_fields(sbt_info, name, photo, twitter_id, discord_id, telegram_id, score);
-    sbt_info.solFee = 0;
+    sbt_info.sol_fee = 0;
     sbt_info.minted = true;
 
     mint_to(
@@ -71,7 +75,7 @@ pub fn mint_sbt_token_free(
             MintTo {
                 mint: ctx.accounts.mint_account.to_account_info(),
                 to: ctx.accounts.token_account.to_account_info(),
-                authority: ctx.accounts.payer.to_account_info(),
+                authority: ctx.accounts.mint_account.to_account_info(),
             },
         ),
         1,
@@ -97,7 +101,7 @@ pub fn mint_sbt_token_paid(
     anchor_lang::solana_program::program::invoke(
         &system_instruction::transfer(
             &ctx.accounts.payer.key(),
-            &ctx.accounts.admin.feeAccount,
+            &ctx.accounts.admin.fee_account,
             transfer_amount,
         ),
         &[
@@ -109,7 +113,7 @@ pub fn mint_sbt_token_paid(
 
     let sbt_info = &mut ctx.accounts.sbt_info;
     update_sbt_info_fields(sbt_info, name, photo, twitter_id, discord_id, telegram_id, score);
-    sbt_info.solFee = transfer_amount;
+    sbt_info.sol_fee = transfer_amount;
     sbt_info.minted = true;
 
     mint_to(
@@ -190,8 +194,8 @@ fn update_sbt_info_fields(
 ) {
     sbt_info.name = name;
     sbt_info.photo = photo;
-    sbt_info.twitterID = twitter_id;
-    sbt_info.discordID = discord_id;
-    sbt_info.telegramID = telegram_id;
+    sbt_info.twitter_id = twitter_id;
+    sbt_info.discord_id = discord_id;
+    sbt_info.telegram_id = telegram_id;
     sbt_info.score = score;
 }

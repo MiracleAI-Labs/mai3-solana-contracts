@@ -37,9 +37,12 @@ pub struct CreateSbtMint<'info> {
 
     #[account(
         init,
+        seeds = [b"mint"],
+        bump,
         payer = payer,
-        mint::decimals = 0,
-        mint::authority = payer.key(),
+        mint::decimals = 9,
+        mint::authority = mint_account.key(),
+        mint::freeze_authority = mint_account.key(),
     )]
     pub mint_account: Account<'info, Mint>,
 
@@ -54,9 +57,11 @@ pub fn create_sbt_token_mint(
     token_name: String, 
     token_symbol: String, 
     token_uri: String, 
-    signer: Pubkey
+    signer: Pubkey,
+    fee_account: Pubkey
 ) -> Result<()> {
     ctx.accounts.admin.signer = signer;
+    ctx.accounts.admin.fee_account = fee_account;
 
     create_metadata_accounts_v3(
         CpiContext::new(
@@ -64,8 +69,8 @@ pub fn create_sbt_token_mint(
             CreateMetadataAccountsV3 {
                 metadata: ctx.accounts.metadata_account.to_account_info(),
                 mint: ctx.accounts.mint_account.to_account_info(), 
-                mint_authority: ctx.accounts.payer.to_account_info(),
-                update_authority: ctx.accounts.payer.to_account_info(),
+                mint_authority: ctx.accounts.mint_account.to_account_info(), // PDA is mint authority
+                update_authority: ctx.accounts.mint_account.to_account_info(), // PDA is update authority
                 payer: ctx.accounts.payer.to_account_info(),
                 system_program: ctx.accounts.system_program.to_account_info(),
                 rent: ctx.accounts.rent.to_account_info(),
