@@ -21,5 +21,5 @@ pub struct SbtInfo {
 }
 
 impl SbtInfo {
-    pub const INIT_SPACE: usize = 8 + 200 + 200 + 50 + 50 + 50 + 8 + 8 + 8 + 8 + 1;
+    pub const INIT_SPACE: usize = 8 + 50 + 200 + 50 + 50 + 50 + 8 + 8 + 8 + 8 + 1;
 }

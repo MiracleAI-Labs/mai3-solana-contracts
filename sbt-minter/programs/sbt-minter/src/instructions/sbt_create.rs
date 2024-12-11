@@ -60,34 +60,43 @@ pub fn create_sbt_token_mint(
     signer: Pubkey,
     fee_account: Pubkey
 ) -> Result<()> {
+    msg!("Creating SBT mint...");
+    
     ctx.accounts.admin.signer = signer;
     ctx.accounts.admin.fee_account = fee_account;
 
-    create_metadata_accounts_v3(
-        CpiContext::new(
-            ctx.accounts.token_metadata_program.to_account_info(),
-            CreateMetadataAccountsV3 {
-                metadata: ctx.accounts.metadata_account.to_account_info(),
-                mint: ctx.accounts.mint_account.to_account_info(), 
-                mint_authority: ctx.accounts.mint_account.to_account_info(), // PDA is mint authority
-                update_authority: ctx.accounts.mint_account.to_account_info(), // PDA is update authority
-                payer: ctx.accounts.payer.to_account_info(),
-                system_program: ctx.accounts.system_program.to_account_info(),
-                rent: ctx.accounts.rent.to_account_info(),
-            },
-        ),
-        DataV2 {
-            name: token_name,
-            symbol: token_symbol,
-            uri: token_uri,
-            seller_fee_basis_points: 0,
-            creators: None,
-            collection: None,
-            uses: None,
-        },
-        false,
-        true,
-        None,
-    )?;
+     // PDA signer seeds
+     let signer_seeds: &[&[&[u8]]] = &[&[b"mint", &[ctx.bumps.mint_account]]];
+
+     // Cross Program Invocation (CPI) signed by PDA
+     // Invoking the create_metadata_account_v3 instruction on the token metadata program
+     create_metadata_accounts_v3(
+         CpiContext::new(
+             ctx.accounts.token_metadata_program.to_account_info(),
+             CreateMetadataAccountsV3 {
+                 metadata: ctx.accounts.metadata_account.to_account_info(),
+                 mint: ctx.accounts.mint_account.to_account_info(),
+                 mint_authority: ctx.accounts.mint_account.to_account_info(), // PDA is mint authority
+                 update_authority: ctx.accounts.mint_account.to_account_info(), // PDA is update authority
+                 payer: ctx.accounts.payer.to_account_info(),
+                 system_program: ctx.accounts.system_program.to_account_info(),
+                 rent: ctx.accounts.rent.to_account_info(),
+             },
+         )
+         .with_signer(signer_seeds),
+         DataV2 {
+             name: token_name,
+             symbol: token_symbol,
+             uri: token_uri,
+             seller_fee_basis_points: 0,
+             creators: None,
+             collection: None,
+             uses: None,
+         },
+         false, // Is mutable
+         true,  // Update authority is signer
+         None,  // Collection details
+     )?;
+
     Ok(())
 }
