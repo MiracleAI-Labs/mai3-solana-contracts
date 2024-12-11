@@ -23,31 +23,16 @@ pub fn recover_should_work(
     ) {
     let secp = Secp256k1::new();
     let (secret_key, public_key) = secp.generate_keypair(&mut OsRng);
-
-    // let msg1 = name.to_string();
-    // let msg2 = photo.to_string();
-    // let msg3 = twitterID.to_string();
-    // let msg4 = discordID.to_string();
-    // let msg5 = telegramID.to_string();
-    // let msg6 = score.to_string();
-
+    
     let msg_hash = keccak(&[
         name.as_ref(), photo.as_ref(), twitter_id.as_ref(),
         discord_id.as_ref(), telegram_id.as_ref(), score.to_le_bytes().as_ref()
     ]);
 
-    // let msg_hash = keccak(&[msg1.as_ref(), msg2.as_ref(), msg3.as_ref(), msg4.as_ref(), msg5.as_ref(), msg6.as_ref()]);
     let message = Message::from_slice(&msg_hash.as_ref()).unwrap();
 
     let signature = secp.sign_ecdsa_recoverable(&message, &secret_key);
     let (recovery_id, serialize_sig) = signature.serialize_compact();
-
-    // println!("msg1: {}", msg1);
-    // println!("msg2: {}", msg2);
-    // println!("msg3: {}", msg3);
-    // println!("msg4: {}", msg4);
-    // println!("msg5: {}", msg5);
-    // println!("msg6: {}", msg6);
 
     println!("msg_hash: {}", hex::encode(msg_hash.as_ref()));
     println!("recovery_id: {}", recovery_id.to_i32());
@@ -73,6 +58,15 @@ pub fn recover_should_work(
     println!("recovered_key: {}", hex::encode(keccak(&[res.0.as_ref()]).as_ref()));
 }
 
+/***
+ msg_hash: 84cd14a5fbfc60234b90eefba1919ff0e1638f387dbf176f84fdf61b7a9a9aa3
+recovery_id: 0
+serialize_sig: b27ab82e590dc7fd0d760e3f8baad52595ba5a0b40c302b238487f1fe8c3bf3e5823cdd3097ccde308ec7435c5b987410e0682a8402285b3b10b584e6bf1fa50
+private key f1efbf99b8797f1bec2601b1f310e5f928a7c4141142766db50b0ead72661a5e
+address 14417921a9273e30f056604d56b407155487643ab35f48e447815fb64100f77f
+public_key: 14417921a9273e30f056604d56b407155487643ab35f48e447815fb64100f77f
+recovered_key: 14417921a9273e30f056604d56b407155487643ab35f48e447815fb64100f77f
+***/
 #[cfg(test)]
 mod tests {
     use super::*;

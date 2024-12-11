@@ -2,122 +2,149 @@ import { describe, it, before } from 'node:test';
 import * as anchor from '@coral-xyz/anchor';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import { BankrunProvider } from 'anchor-bankrun';
-import { startAnchor } from 'solana-bankrun';
+import { ProgramTestContext, startAnchor } from 'solana-bankrun';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import type { SbtMinter } from '../target/types/sbt_minter';
-import * as helpers from "./helpers";
 import { BN } from 'bn.js';
-// import bs58 from 'bs58';
 
+// 常量定义
 const IDL = require('../target/idl/sbt_minter.json');
 const PROGRAM_ID = new PublicKey(IDL.address);
 const METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
+const FREE_MINT_SBT = true;
 
-describe('Bankrun example', () => {
+// 测试配置
+const TEST_CONFIG = {
+  metadata: {
+    name: 'SBT',
+    symbol: 'SBTSOL',
+    uri: 'https://raw.githubusercontent.com/miracleAI-Lab/solana-contracts-examples/refs/heads/main/metadata/sbt-token.json'
+  },
+  userInfo: {
+    name: 'Jesse',
+    photo: 'https://w7.pngwing.com/pngs/153/594/png-transparent-solana-coin-sign-icon-shiny-golden-symmetric-geometrical-design.png',
+    twitter_id: 'https://twitter.com/solana', 
+    discord_id: 'https://discord.com/solana',
+    telegram_id: 'https://t.me/solana',
+    score: new BN(20)
+  },
+  signature: {
+    recoveryId: 0,
+    signerPkStr: '14417921a9273e30f056604d56b407155487643ab35f48e447815fb64100f77f',
+    signature: "b27ab82e590dc7fd0d760e3f8baad52595ba5a0b40c302b238487f1fe8c3bf3e5823cdd3097ccde308ec7435c5b987410e0682a8402285b3b10b584e6bf1fa50"
+  }
+};
+
+describe('SBT Token 测试', () => {
+  // 状态变量
   let provider: BankrunProvider;
   let payer: anchor.Wallet;
   let program: anchor.Program<SbtMinter>;
   let signerPublicKey: PublicKey;
   let feeAccountKeypair: Keypair;
-  let context: any;
-
+  let context: ProgramTestContext;
   let mintAccount: PublicKey;
   let tokenAccount: PublicKey;
-  const metadata = {
-    name: 'SBT',
-    symbol: 'SBTSOL', 
-    uri: 'https://raw.githubusercontent.com/miracleAI-Lab/solana-contracts-examples/refs/heads/main/metadata/sbt-token.json',
-  };
 
+  // 测试环境初始化
   before(async () => {
-    context = await startAnchor(
-      '',
-      [
-        { name: 'sbt_minter', programId: PROGRAM_ID },
-        { name: 'token_metadata', programId: METADATA_PROGRAM_ID },
-      ],
-      [],
-    );
+    // 初始化测试上下文
+    context = await startAnchor('', [
+      { name: 'sbt_minter', programId: PROGRAM_ID },
+      { name: 'token_metadata', programId: METADATA_PROGRAM_ID }
+    ], []);
+
+    // 设置Provider和Program
     provider = new BankrunProvider(context);
     anchor.setProvider(provider);
     payer = provider.wallet as anchor.Wallet;
     program = new anchor.Program(IDL, provider);
-    signerPublicKey = new PublicKey(Buffer.from('14417921a9273e30f056604d56b407155487643ab35f48e447815fb64100f77f', 'hex'));
+
+    // 初始化密钥和账户
+    signerPublicKey = new PublicKey(Buffer.from(TEST_CONFIG.signature.signerPkStr, 'hex'));
     feeAccountKeypair = new Keypair();
 
-    // const msg_hash_base58 = "9wQC3mWJi9d3BVuYpSH8g6ZzykTXV7wwSQemedsvP57x";
-    // const msg_hash_bytes = bs58.decode(msg_hash_base58);
-    // const msg_hash_hex = Buffer.from(msg_hash_bytes).toString('hex');
-    // console.log(`   Signer Public Key: ${signerPublicKey}`);
-    // console.log(`   msg_hash:`, msg_hash_hex);
-
+    // 生成PDA账户
     mintAccount = PublicKey.findProgramAddressSync(
       [Buffer.from('mint'), payer.publicKey.toBuffer()],
       program.programId
     )[0];
-  
-    tokenAccount = getAssociatedTokenAddressSync(
-      mintAccount,
-      payer.publicKey
-    );
-  
-    console.log(`   Mint Account Address: ${mintAccount}`);
-    console.log(`   Associated Token Account Address: ${tokenAccount}`);
+
+    tokenAccount = getAssociatedTokenAddressSync(mintAccount, payer.publicKey);
+
+    // 日志输出
+    console.log(`   Mint Account: ${mintAccount}`);
+    console.log(`   Token Account: ${tokenAccount}`);
   });
 
-  it('Create an SBT Token!', async () => {
-    const transactionSignature = await program.methods
-      .createSbtTokenMint(metadata.name, metadata.symbol, metadata.uri, signerPublicKey, feeAccountKeypair.publicKey)
-      .accounts({
-        payer: payer.publicKey,
-      })
+  // 创建SBT代币
+  it('创建SBT代币', async () => {
+    const { name, symbol, uri } = TEST_CONFIG.metadata;
+    const tx = await program.methods
+      .createSbtTokenMint(name, symbol, uri, signerPublicKey, feeAccountKeypair.publicKey)
+      .accounts({ payer: payer.publicKey })
       .rpc();
 
-    console.log('Success!');
-    console.log(`   Transaction Signature: ${transactionSignature}`);
+    console.log('创建成功!');
+    console.log(`   交易签名: ${tx}`);
   });
 
-  it('Mint SBTtoken to your wallet!', async () => {
-    const userInfo = {
-      name: 'Jesse',
-      photo: 'https://w7.pngwing.com/pngs/153/594/png-transparent-solana-coin-sign-icon-shiny-golden-symmetric-geometrical-design.png',
-      twitter_id: 'https://twitter.com/solana',
-      discord_id: 'https://discord.com/solana', 
-      telegram_id: 'https://t.me/solana',
-      score: new BN(20),
-    };
+  // 铸造SBT代币
+  if (FREE_MINT_SBT) {
+    it('免费铸造SBT代币', async () => {
+      const signatureArray = Buffer.from(TEST_CONFIG.signature.signature, 'hex');
+      const tx = await program.methods
+        .mintSbtTokenFree(
+          TEST_CONFIG.userInfo.name,
+          TEST_CONFIG.userInfo.photo,
+          TEST_CONFIG.userInfo.twitter_id,
+          TEST_CONFIG.userInfo.discord_id,
+          TEST_CONFIG.userInfo.telegram_id,
+          TEST_CONFIG.userInfo.score,
+          Array.from(signatureArray),
+          TEST_CONFIG.signature.recoveryId
+        )
+        .accounts({ payer: payer.publicKey })
+        .rpc();
 
-    const recoveryId = 0;
-    const signature = "b27ab82e590dc7fd0d760e3f8baad52595ba5a0b40c302b238487f1fe8c3bf3e5823cdd3097ccde308ec7435c5b987410e0682a8402285b3b10b584e6bf1fa50";
-    const signatureArray = Buffer.from(signature, 'hex');
+      console.log('铸造成功!');
+      console.log(`   交易签名: ${tx}`);
 
-    const transactionSignature = await program.methods
-      .mintSbtTokenFree(
-        userInfo.name, 
-        userInfo.photo, 
-        userInfo.twitter_id, 
-        userInfo.discord_id, 
-        userInfo.telegram_id, 
-        userInfo.score,
-        Array.from(signatureArray),
-        recoveryId
-      ).accounts({
-        payer: payer.publicKey,
-      })
-      .rpc();
+      // 获取用户信息
+      const [userPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from('sbt_info'), payer.publicKey.toBuffer()],
+        program.programId
+      );
+      const userInfo = await program.account.sbtInfo.fetch(userPDA);
+      console.log(`   用户信息: ${JSON.stringify(userInfo)}`);
+    });
+  } else {
+    it('付费铸造SBT代币', async () => {
+      const signatureArray = Buffer.from(TEST_CONFIG.signature.signature, 'hex');
+      const tx = await program.methods
+        .mintSbtTokenPaid(
+          TEST_CONFIG.userInfo.name,
+          TEST_CONFIG.userInfo.photo,
+          TEST_CONFIG.userInfo.twitter_id,
+          TEST_CONFIG.userInfo.discord_id,
+          TEST_CONFIG.userInfo.telegram_id,
+          TEST_CONFIG.userInfo.score,
+          Array.from(signatureArray),
+          TEST_CONFIG.signature.recoveryId
+        )
+        .accounts({ payer: payer.publicKey })
+        .rpc();
 
-    console.log('Success!');
-    console.log(`   Transaction Signature: ${transactionSignature}`);
+      console.log('铸造成功!');
+      console.log(`   交易签名: ${tx}`);
 
-    const [userPDA] = PublicKey.findProgramAddressSync([Buffer.from('sbt_info'), payer.publicKey.toBuffer()], program.programId);
-    const userInfoResponse = await program.account.sbtInfo.fetch(userPDA);
-    console.log(`   User Info: ${JSON.stringify(userInfoResponse)}`);
-
-    let unpackedAccount = await helpers.getTokenAccountInfoBR(
-      context.banksClient,
-      tokenAccount
-    );
-
-    console.log(`   Unpacked Account: ${Number(unpackedAccount.amount)}`);
-  });
+      // 获取用户信息
+      const [userPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from('sbt_info'), payer.publicKey.toBuffer()],
+        program.programId
+      );
+      const userInfo = await program.account.sbtInfo.fetch(userPDA);
+      console.log(`   用户信息: ${JSON.stringify(userInfo)}`);
+    });
+  }
 });

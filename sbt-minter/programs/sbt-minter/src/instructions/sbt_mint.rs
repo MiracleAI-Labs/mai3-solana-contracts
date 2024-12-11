@@ -69,17 +69,23 @@ pub fn mint_sbt_token_free(
     sbt_info.sol_fee = 0;
     sbt_info.minted = true;
 
+    // PDA signer seeds
+    let signer_seeds: &[&[&[u8]]] = &[&[b"mint", &[ctx.bumps.mint_account]]];
+
+    // Invoke the mint_to instruction on the token program
     mint_to(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
             MintTo {
                 mint: ctx.accounts.mint_account.to_account_info(),
                 to: ctx.accounts.token_account.to_account_info(),
-                authority: ctx.accounts.mint_account.to_account_info(),
+                authority: ctx.accounts.mint_account.to_account_info(), // PDA mint authority, required as signer
             },
-        ),
+        )
+        .with_signer(signer_seeds), // using PDA to sign
         1,
     )?;
+
 
     Ok(())
 }
@@ -116,15 +122,20 @@ pub fn mint_sbt_token_paid(
     sbt_info.sol_fee = transfer_amount;
     sbt_info.minted = true;
 
+    // PDA signer seeds
+    let signer_seeds: &[&[&[u8]]] = &[&[b"mint", &[ctx.bumps.mint_account]]];
+
+    // Invoke the mint_to instruction on the token program
     mint_to(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
             MintTo {
                 mint: ctx.accounts.mint_account.to_account_info(),
                 to: ctx.accounts.token_account.to_account_info(),
-                authority: ctx.accounts.payer.to_account_info(),
+                authority: ctx.accounts.mint_account.to_account_info(), // PDA mint authority, required as signer
             },
-        ),
+        )
+        .with_signer(signer_seeds), // using PDA to sign
         1,
     )?;
 
