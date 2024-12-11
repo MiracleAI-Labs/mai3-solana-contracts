@@ -1,8 +1,8 @@
 import { describe, it, before } from 'node:test';
 import * as anchor from '@coral-xyz/anchor';
-import { Keypair, PublicKey, SystemProgram } from '@solana/web3.js';
+import { Keypair, PublicKey } from '@solana/web3.js';
 import { BankrunProvider } from 'anchor-bankrun';
-import { ProgramTestContext, startAnchor, AddedAccount, start, BanksClient } from 'solana-bankrun';
+import { ProgramTestContext, startAnchor, BanksClient } from 'solana-bankrun';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import type { SbtMinter } from '../target/types/sbt_minter';
 import { BN } from 'bn.js';
@@ -44,7 +44,6 @@ describe('SBT Token 测试', () => {
   let feeReceiverKeypair: Keypair;
   let context: ProgramTestContext;
   let client: BanksClient;
-  let wallet: anchor.Wallet;
   let mintAccount: PublicKey;
   let tokenAccount: PublicKey;
 
@@ -61,7 +60,6 @@ describe('SBT Token 测试', () => {
     provider = new BankrunProvider(context);
     anchor.setProvider(provider);
     payer = provider.wallet as anchor.Wallet;
-    wallet = provider.wallet as anchor.Wallet;
     program = new anchor.Program(IDL, provider);
 
     // 初始化密钥和账户
