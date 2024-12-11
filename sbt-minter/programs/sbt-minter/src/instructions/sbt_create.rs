@@ -58,12 +58,12 @@ pub fn create_sbt_token_mint(
     token_symbol: String, 
     token_uri: String, 
     signer: Pubkey,
-    fee_account: Pubkey
+    fee_receiver: Pubkey
 ) -> Result<()> {
     msg!("Creating SBT mint...");
     
     ctx.accounts.admin.signer = signer;
-    ctx.accounts.admin.fee_account = fee_account;
+    ctx.accounts.admin.fee_receiver = fee_receiver;
 
      // PDA signer seeds
      let signer_seeds: &[&[&[u8]]] = &[&[b"mint", &[ctx.bumps.mint_account]]];

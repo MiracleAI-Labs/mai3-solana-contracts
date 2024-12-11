@@ -1,8 +1,8 @@
 import { describe, it, before } from 'node:test';
 import * as anchor from '@coral-xyz/anchor';
-import { Keypair, PublicKey } from '@solana/web3.js';
+import { Keypair, PublicKey, SystemProgram } from '@solana/web3.js';
 import { BankrunProvider } from 'anchor-bankrun';
-import { ProgramTestContext, startAnchor } from 'solana-bankrun';
+import { ProgramTestContext, startAnchor, AddedAccount, start, BanksClient } from 'solana-bankrun';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import type { SbtMinter } from '../target/types/sbt_minter';
 import { BN } from 'bn.js';
@@ -11,7 +11,7 @@ import { BN } from 'bn.js';
 const IDL = require('../target/idl/sbt_minter.json');
 const PROGRAM_ID = new PublicKey(IDL.address);
 const METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
-const FREE_MINT_SBT = true;
+const FREE_MINT_SBT = false;
 
 // 测试配置
 const TEST_CONFIG = {
@@ -41,8 +41,10 @@ describe('SBT Token 测试', () => {
   let payer: anchor.Wallet;
   let program: anchor.Program<SbtMinter>;
   let signerPublicKey: PublicKey;
-  let feeAccountKeypair: Keypair;
+  let feeReceiverKeypair: Keypair;
   let context: ProgramTestContext;
+  let client: BanksClient;
+  let wallet: anchor.Wallet;
   let mintAccount: PublicKey;
   let tokenAccount: PublicKey;
 
@@ -55,14 +57,17 @@ describe('SBT Token 测试', () => {
     ], []);
 
     // 设置Provider和Program
+    client = context.banksClient;
     provider = new BankrunProvider(context);
     anchor.setProvider(provider);
     payer = provider.wallet as anchor.Wallet;
+    wallet = provider.wallet as anchor.Wallet;
     program = new anchor.Program(IDL, provider);
 
     // 初始化密钥和账户
     signerPublicKey = new PublicKey(Buffer.from(TEST_CONFIG.signature.signerPkStr, 'hex'));
-    feeAccountKeypair = new Keypair();
+    feeReceiverKeypair = new Keypair();
+    console.log(`feeAccountKeypair: ${feeReceiverKeypair.publicKey}`);
 
     // 生成PDA账户
     mintAccount = PublicKey.findProgramAddressSync(
@@ -81,7 +86,7 @@ describe('SBT Token 测试', () => {
   it('创建SBT代币', async () => {
     const { name, symbol, uri } = TEST_CONFIG.metadata;
     const tx = await program.methods
-      .createSbtTokenMint(name, symbol, uri, signerPublicKey, feeAccountKeypair.publicKey)
+      .createSbtTokenMint(name, symbol, uri, signerPublicKey, feeReceiverKeypair.publicKey)
       .accounts({ payer: payer.publicKey })
       .rpc();
 
@@ -120,6 +125,9 @@ describe('SBT Token 测试', () => {
     });
   } else {
     it('付费铸造SBT代币', async () => {
+      const balanceBefore = await client.getBalance(payer.publicKey);
+      console.log(`=========payer balance before: ${balanceBefore}`);
+
       const signatureArray = Buffer.from(TEST_CONFIG.signature.signature, 'hex');
       const tx = await program.methods
         .mintSbtTokenPaid(
@@ -132,11 +140,23 @@ describe('SBT Token 测试', () => {
           Array.from(signatureArray),
           TEST_CONFIG.signature.recoveryId
         )
-        .accounts({ payer: payer.publicKey })
+        .accounts({ 
+          payer: payer.publicKey,
+          feeReceiver: feeReceiverKeypair.publicKey,
+        })
         .rpc();
 
       console.log('铸造成功!');
       console.log(`   交易签名: ${tx}`);
+
+      const balanceAfter = await client.getBalance(payer.publicKey);
+      console.log(`=========payer balance after: ${balanceAfter}`);
+
+      const change = balanceBefore - balanceAfter;
+      console.log(`=========payer balance change: ${change}`);
+
+      const balanceAfterFee = await client.getBalance(feeReceiverKeypair.publicKey);
+      console.log(`=========feeReceiver balance: ${balanceAfterFee}`);
 
       // 获取用户信息
       const [userPDA] = PublicKey.findProgramAddressSync(

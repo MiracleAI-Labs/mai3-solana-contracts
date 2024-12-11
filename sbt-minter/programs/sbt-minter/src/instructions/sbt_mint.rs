@@ -1,5 +1,5 @@
 use {
-    anchor_lang::prelude::*,
+    anchor_lang::{prelude::*, solana_program},
     anchor_lang::solana_program::{
         keccak::hashv as keccak,
         secp256k1_recover::secp256k1_recover,
@@ -46,6 +46,10 @@ pub struct SbtMint<'info> {
     )]
     pub sbt_info: Account<'info, SbtInfo>,
 
+     /// CHECK: 仅用于接收SOL转账
+     #[account(mut, address = admin.fee_receiver)]
+     pub fee_receiver: AccountInfo<'info>,
+
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
@@ -86,7 +90,6 @@ pub fn mint_sbt_token_free(
         1,
     )?;
 
-
     Ok(())
 }
 
@@ -103,16 +106,17 @@ pub fn mint_sbt_token_paid(
 ) -> Result<()> {
     validate_and_verify(&ctx, name.clone(), photo.clone(), twitter_id.clone(), discord_id.clone(), telegram_id.clone(), score, signature, recovery_id, true)?;
 
-    let transfer_amount = 100_000_000; // 0.1 SOL
-    anchor_lang::solana_program::program::invoke(
-        &system_instruction::transfer(
+    msg!("fee_account: {}", &ctx.accounts.admin.fee_receiver);
+    let transfer_amount = 200_000_000; // 0.2 SOL
+    solana_program::program::invoke(
+        &solana_program::system_instruction::transfer(
             &ctx.accounts.payer.key(),
-            &ctx.accounts.admin.fee_account,
+            &ctx.accounts.fee_receiver.key(),
             transfer_amount,
         ),
         &[
             ctx.accounts.payer.to_account_info(),
-            ctx.accounts.admin.to_account_info(),
+            ctx.accounts.fee_receiver.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
         ],
     )?;
