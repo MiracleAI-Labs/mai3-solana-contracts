@@ -7,6 +7,7 @@ import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import type { SbtMinter } from '../target/types/sbt_minter';
 import * as helpers from "./helpers";
 import { BN } from 'bn.js';
+// import bs58 from 'bs58';
 
 const IDL = require('../target/idl/sbt_minter.json');
 const PROGRAM_ID = new PublicKey(IDL.address);
@@ -16,9 +17,8 @@ describe('Bankrun example', () => {
   let provider: BankrunProvider;
   let payer: anchor.Wallet;
   let program: anchor.Program<SbtMinter>;
-  let signerKeypair: Keypair;
+  let signerPublicKey: PublicKey;
   let feeAccountKeypair: Keypair;
-  let recipientKeypair: Keypair;
   let context: any;
 
   let mintAccount: PublicKey;
@@ -42,9 +42,14 @@ describe('Bankrun example', () => {
     anchor.setProvider(provider);
     payer = provider.wallet as anchor.Wallet;
     program = new anchor.Program(IDL, provider);
-    signerKeypair = new Keypair();
+    signerPublicKey = new PublicKey(Buffer.from('14417921a9273e30f056604d56b407155487643ab35f48e447815fb64100f77f', 'hex'));
     feeAccountKeypair = new Keypair();
-    recipientKeypair = new Keypair();
+
+    // const msg_hash_base58 = "9wQC3mWJi9d3BVuYpSH8g6ZzykTXV7wwSQemedsvP57x";
+    // const msg_hash_bytes = bs58.decode(msg_hash_base58);
+    // const msg_hash_hex = Buffer.from(msg_hash_bytes).toString('hex');
+    // console.log(`   Signer Public Key: ${signerPublicKey}`);
+    // console.log(`   msg_hash:`, msg_hash_hex);
 
     mintAccount = PublicKey.findProgramAddressSync(
       [Buffer.from('mint'), payer.publicKey.toBuffer()],
@@ -62,7 +67,7 @@ describe('Bankrun example', () => {
 
   it('Create an SBT Token!', async () => {
     const transactionSignature = await program.methods
-      .createSbtTokenMint(metadata.name, metadata.symbol, metadata.uri, signerKeypair.publicKey, feeAccountKeypair.publicKey)
+      .createSbtTokenMint(metadata.name, metadata.symbol, metadata.uri, signerPublicKey, feeAccountKeypair.publicKey)
       .accounts({
         payer: payer.publicKey,
       })
@@ -76,23 +81,24 @@ describe('Bankrun example', () => {
     const userInfo = {
       name: 'Jesse',
       photo: 'https://w7.pngwing.com/pngs/153/594/png-transparent-solana-coin-sign-icon-shiny-golden-symmetric-geometrical-design.png',
-      twitterID: 'https://twitter.com/solana',
-      discordID: 'https://discord.com/solana', 
-      telegramID: 'https://t.me/solana',
+      twitter_id: 'https://twitter.com/solana',
+      discord_id: 'https://discord.com/solana', 
+      telegram_id: 'https://t.me/solana',
+      score: new BN(20),
     };
 
-    const recoveryId = 1;
-    const signature = "9420631befee142ab90d0057c97d76dca4404ec6f5af7c599d56bd035d5b652d26838f4e0e0da446e3f424b69dff7310589d516b89c13fb85f681c209e6ba04e";
+    const recoveryId = 0;
+    const signature = "b27ab82e590dc7fd0d760e3f8baad52595ba5a0b40c302b238487f1fe8c3bf3e5823cdd3097ccde308ec7435c5b987410e0682a8402285b3b10b584e6bf1fa50";
     const signatureArray = Buffer.from(signature, 'hex');
 
     const transactionSignature = await program.methods
       .mintSbtTokenFree(
         userInfo.name, 
         userInfo.photo, 
-        userInfo.twitterID, 
-        userInfo.discordID, 
-        userInfo.telegramID, 
-        new BN(20),
+        userInfo.twitter_id, 
+        userInfo.discord_id, 
+        userInfo.telegram_id, 
+        userInfo.score,
         Array.from(signatureArray),
         recoveryId
       ).accounts({

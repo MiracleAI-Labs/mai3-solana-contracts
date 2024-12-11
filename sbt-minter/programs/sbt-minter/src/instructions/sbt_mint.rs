@@ -62,7 +62,7 @@ pub fn mint_sbt_token_free(
     signature: [u8; 64],
     recovery_id: u8
 ) -> Result<()> {
-    validate_and_verify(&ctx, &name, &photo, &twitter_id, &discord_id, &telegram_id, score, signature, recovery_id, true)?;
+    validate_and_verify(&ctx, name.clone(), photo.clone(), twitter_id.clone(), discord_id.clone(), telegram_id.clone(), score, signature, recovery_id, true)?;
 
     let sbt_info = &mut ctx.accounts.sbt_info;
     update_sbt_info_fields(sbt_info, name, photo, twitter_id, discord_id, telegram_id, score);
@@ -95,7 +95,7 @@ pub fn mint_sbt_token_paid(
     signature: [u8; 64],
     recovery_id: u8
 ) -> Result<()> {
-    validate_and_verify(&ctx, &name, &photo, &twitter_id, &discord_id, &telegram_id, score, signature, recovery_id, true)?;
+    validate_and_verify(&ctx, name.clone(), photo.clone(), twitter_id.clone(), discord_id.clone(), telegram_id.clone(), score, signature, recovery_id, true)?;
 
     let transfer_amount = 100_000_000; // 0.1 SOL
     anchor_lang::solana_program::program::invoke(
@@ -142,18 +142,18 @@ pub fn update_sbt_info(
     signature: [u8; 64],
     recovery_id: u8
 ) -> Result<()> {
-    validate_and_verify(&ctx, &name, &photo, &twitter_id, &discord_id, &telegram_id, score, signature, recovery_id, false)?;
+    validate_and_verify(&ctx, name.clone(), photo.clone(), twitter_id.clone(), discord_id.clone(), telegram_id.clone(), score, signature, recovery_id, false)?;
     update_sbt_info_fields(&mut ctx.accounts.sbt_info, name, photo, twitter_id, discord_id, telegram_id, score);
     Ok(())
 }
 
 fn validate_and_verify(
     ctx: &Context<SbtMint>,
-    name: &str,
-    photo: &str,
-    twitter_id: &str,
-    discord_id: &str,
-    telegram_id: &str,
+    name: String, 
+    photo: String, 
+    twitter_id: String, 
+    discord_id: String, 
+    telegram_id: String,
     score: u64,
     signature: [u8; 64],
     recovery_id: u8,
@@ -174,11 +174,17 @@ fn validate_and_verify(
         name.as_ref(), photo.as_ref(), twitter_id.as_ref(),
         discord_id.as_ref(), telegram_id.as_ref(), score.to_le_bytes().as_ref()
     ]);
-    
-    let pk = secp256k1_recover(msg_hash.as_ref(), recovery_id, &signature)
-        .map_err(|_| SbtMinterError::InvalidSignature)?;
+
+    msg!("msg_hash: {}", hex::encode(msg_hash.as_ref()));
+    msg!("signer: {}", hex::encode(ctx.accounts.admin.signer));
+
+    let pk = secp256k1_recover(msg_hash.as_ref(), recovery_id, signature.as_ref())
+            .map_err(|_e| SbtMinterError::InvalidSignature)?;
+
     let recovered_key = Pubkey::new_from_array(keccak(&[pk.0.as_ref()]).0);
-    require!(recovered_key == ctx.accounts.admin.signer, SbtMinterError::InvalidSigner);
+    msg!("recovered_key: {}", hex::encode(recovered_key.as_ref()));
+
+    require!(recovered_key.as_ref() == ctx.accounts.admin.signer.as_ref(), SbtMinterError::InvalidSigner);
 
     Ok(())
 }
