@@ -30,7 +30,7 @@ const TEST_CONFIG = {
   },
   signature: {
     recoveryId: 0,
-    signerPkStr: '14417921a9273e30f056604d56b407155487643ab35f48e447815fb64100f77f',
+    signerPubKey: '14417921a9273e30f056604d56b407155487643ab35f48e447815fb64100f77f',
     signature: "b27ab82e590dc7fd0d760e3f8baad52595ba5a0b40c302b238487f1fe8c3bf3e5823cdd3097ccde308ec7435c5b987410e0682a8402285b3b10b584e6bf1fa50"
   }
 };
@@ -63,7 +63,7 @@ describe('SBT Token 测试', () => {
     program = new anchor.Program(IDL, provider);
 
     // 初始化密钥和账户
-    signerPublicKey = new PublicKey(Buffer.from(TEST_CONFIG.signature.signerPkStr, 'hex'));
+    signerPublicKey = new PublicKey(Buffer.from(TEST_CONFIG.signature.signerPubKey, 'hex'));
     feeReceiverKeypair = new Keypair();
     console.log(`feeAccountKeypair: ${feeReceiverKeypair.publicKey}`);
 
