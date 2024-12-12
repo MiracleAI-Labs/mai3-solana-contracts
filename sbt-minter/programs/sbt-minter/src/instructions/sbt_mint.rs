@@ -40,7 +40,7 @@ pub struct SbtMint<'info> {
     #[account(
         init,
         payer = payer,
-        space = 8 + SbtInfo::INIT_SPACE,
+        space = SbtInfo::INIT_SPACE,
         seeds = [b"sbt_info", payer.key().as_ref()],
         bump
     )]

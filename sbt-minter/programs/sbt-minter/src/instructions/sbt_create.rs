@@ -20,7 +20,7 @@ pub struct CreateSbtMint<'info> {
     #[account(
         init,
         payer = payer,
-        space = 8 + Admin::INIT_SPACE,
+        space = Admin::INIT_SPACE,
         seeds = [b"admin"],
         bump
     )]
@@ -40,7 +40,7 @@ pub struct CreateSbtMint<'info> {
         seeds = [b"mint"],
         bump,
         payer = payer,
-        mint::decimals = 9,
+        mint::decimals = 0,
         mint::authority = mint_account.key(),
         mint::freeze_authority = mint_account.key(),
     )]
