@@ -3,49 +3,30 @@ use {
     anchor_spl::token::{self, Transfer},
 };
 
-pub fn transfer_token(
-    token_program: AccountInfo,
-    from_account: AccountInfo,
-    to_account: AccountInfo, 
-    authority: AccountInfo,
-    amount: u64,
+pub fn transfer_token<'info>(
+    token_program: AccountInfo<'info>,
+    from_account: AccountInfo<'info>,
+    to_account: AccountInfo<'info>,
+    authority: AccountInfo<'info>,
+    task_amount: u64,
+    signer_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()> {
-    token::transfer(
-        CpiContext::new(
-            token_program,
-            Transfer {
-                from: from_account,
-                to: to_account,
-                authority: authority,
-            },
-        ),
-        task_amount,
-    )?;
+    let seeds = signer_seeds.unwrap_or(&[&[]]);
+    let cpi_ctx = CpiContext::new_with_signer(
+        token_program,
+        Transfer {
+            from: from_account,
+            to: to_account,
+            authority: authority,
+        },
+        seeds,
+    );
 
-    Ok(())
-}
+    msg!("Transferring tokens...");
+    msg!("Amount: {}", task_amount);
 
-pub fn transfer_token_with_signer(
-    token_program: AccountInfo,
-    from_account: AccountInfo,
-    to_account: AccountInfo,
-    authority: AccountInfo,
-    amount: u64,
-    signer_seeds: &[&[&[u8]]],
-) -> Result<()> {
-    //let signer_seeds: &[&[&[u8]]] = &[&[b"task_authority", &[ctx.bumps.task_authority]]];
-    token::transfer(
-        CpiContext::new_with_signer(
-            token_program,
-            Transfer {
-                from: from_account,
-                to: to_account,
-                authority: authority,
-            },
-            signer_seeds,
-        ),
-        task_amount,
-    )?;
+    token::transfer(cpi_ctx, task_amount)?;
+    msg!("Transfer completed");
 
     Ok(())
 }

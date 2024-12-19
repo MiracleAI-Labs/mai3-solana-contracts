@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 #[error_code]
-pub enum SbtMinterError {
+pub enum TaskTraderError {
     #[msg("Custom error message")]
     CustomError,
 
@@ -19,4 +19,13 @@ pub enum SbtMinterError {
 
     #[msg("Not minted")]
     NotMinted,
+
+    #[msg("Invalid amount")]
+    InvalidAmount,
+
+    #[msg("Invalid division")]
+    InvalidDivision,
+
+    #[msg("Invalid coin type")]
+    InvalidCoinType,
 }
