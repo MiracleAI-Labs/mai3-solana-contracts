@@ -9,3 +9,6 @@ pub use apply_task::*;
 
 pub mod approve_application;
 pub use approve_application::*;
+
+pub mod setup_task_state;
+pub use setup_task_state::*;

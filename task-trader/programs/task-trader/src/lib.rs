@@ -53,4 +53,15 @@ pub mod task_trader {
         msg!("Approving Application...");
         instructions::approve_application::approve_application(ctx)
     }
+
+    pub fn open_task(ctx: Context<SetupTaskState>) -> Result<()> {
+        msg!("Open Task ...");
+        instructions::setup_task_state::open_task(ctx)
+    }
+
+    pub fn close_task(ctx: Context<SetupTaskState>) -> Result<()> {
+        msg!("Close Task ...");
+        instructions::setup_task_state::close_task(ctx)
+    }
+    
 }

@@ -500,4 +500,117 @@ describe("Task Trader", () => {
       }
     });
   });
+
+  describe("Task Status Management", () => {
+    it("Admin should open and close task", async () => {
+      const { program, wallet, admin } = context;
+      const taskId = 2;
+
+      const [taskInfo] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_info"),
+          new anchor.BN(taskId).toArrayLike(Buffer, "le", 8),
+        ],
+        program.programId
+      );
+
+      // Close task first
+      await program.methods
+        .closeTask()
+        .accounts({
+          user: wallet.publicKey,
+          admin: admin,
+          taskInfo: taskInfo,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([wallet])
+        .rpc();
+
+      // Verify task is closed
+      let taskInfoAccount = await program.account.taskInfo.fetch(taskInfo);
+      assert.deepEqual(taskInfoAccount.state, { close: {} });
+
+      // Open task
+      await program.methods
+        .openTask()
+        .accounts({
+          user: wallet.publicKey,
+          admin: admin,
+          taskInfo: taskInfo,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([wallet])
+        .rpc();
+
+      // Verify task is open
+      taskInfoAccount = await program.account.taskInfo.fetch(taskInfo);
+      assert.deepEqual(taskInfoAccount.state, { open: {} });
+    });
+
+    it("Should close a task", async () => {
+      const { program, wallet, admin } = context;
+      const taskId = 2;
+
+      const [taskInfo] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_info"),
+          new anchor.BN(taskId).toArrayLike(Buffer, "le", 8),
+        ],
+        program.programId
+      );
+
+      await program.methods
+        .closeTask()
+        .accounts({
+          user: wallet.publicKey,
+          admin: admin,
+          taskInfo: taskInfo,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([wallet])
+        .rpc();
+
+      // Verify task state
+      const taskInfoAccount = await program.account.taskInfo.fetch(taskInfo);
+      assert.deepEqual(taskInfoAccount.state, { close: {} });
+    });
+
+    it("Should fail when applying for a closed task", async () => {
+      const { program, applicant } = context;
+      const taskId = 2;
+
+      const [taskInfo] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_info"),
+          new anchor.BN(taskId).toArrayLike(Buffer, "le", 8),
+        ],
+        program.programId
+      );
+
+      const [taskApplication] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_application"),
+          taskInfo.toBuffer(),
+          applicant.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+      try {
+        await program.methods
+          .applyTask()
+          .accounts({
+            taskInfo: taskInfo,
+            taskApplication: taskApplication,
+            applicant: applicant.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([applicant])
+          .rpc();
+        assert.fail("Should have failed when applying for a closed task");
+      } catch (error) {
+        assert.include(error.message, "InvalidTaskState");
+      }
+    });
+  });
 });
