@@ -8,7 +8,10 @@ use {
 
 use crate::{
     errors::TaskTraderError,
-    state::{admin::Admin, task_info::TaskInfo},
+    state::{
+        admin::Admin,
+        task_info::{TaskInfo, TaskState},
+    },
     utils::token_utils,
 };
 
@@ -90,10 +93,10 @@ pub fn create_task(
     taker_num: u64,
     coin_type: u64, // usdt, mai
     rewards: u64,   // mai
+    expire_time: i64,
 ) -> Result<()> {
     msg!("Creating task...");
 
-    // 在 create_task 函数开始处添加
     if task_amount == 0 || taker_num == 0 {
         return Err(TaskTraderError::InvalidAmount.into());
     }
@@ -103,6 +106,11 @@ pub fn create_task(
     if coin_type > 1 {
         return Err(TaskTraderError::InvalidCoinType.into());
     }
+    let current_time = Clock::get()?.unix_timestamp;
+    require!(
+        expire_time > current_time,
+        TaskTraderError::InvalidExpireTime
+    );
 
     // Initialize task info
     let task_info = &mut ctx.accounts.task_info;
@@ -112,7 +120,9 @@ pub fn create_task(
     task_info.amount_per_task = task_amount / taker_num;
     task_info.coin_type = coin_type;
     task_info.rewards = rewards;
-    task_info.state = 0;
+    task_info.expire_time = expire_time;
+    task_info.state = TaskState::Open;
+    task_info.approved_num = 0;
     task_info.requester = ctx.accounts.user.key();
 
     if coin_type == 0 {

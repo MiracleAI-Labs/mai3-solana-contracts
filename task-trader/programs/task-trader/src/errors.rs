@@ -28,4 +28,31 @@ pub enum TaskTraderError {
 
     #[msg("Invalid coin type")]
     InvalidCoinType,
+
+    #[msg("Invalid expire time")]
+    InvalidExpireTime,
+
+    #[msg("Invalid task state")]
+    InvalidTaskState,
+
+    #[msg("Task expired")]
+    TaskExpired,
+
+    #[msg("Too many allowed applicants")]
+    TooManyAllowedApplicants,
+
+    #[msg("Applicant not allowed to apply for this task")]
+    ApplicantNotAllowed,
+
+    #[msg("Invalid Requester")]
+    InvalidRequester,
+
+    #[msg("Invalid Task Id")]
+    InvalidTaskId,
+
+    #[msg("Invalid Application State")]
+    InvalidApplicationState,
+
+    #[msg("Taker Num Exceeded")]
+    TakerNumExceeded,
 }

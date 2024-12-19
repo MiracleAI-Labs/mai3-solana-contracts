@@ -29,6 +29,7 @@ pub mod task_trader {
         taker_num: u64,
         coin_type: u64, // usdt, mai
         rewards: u64,   // mai
+        expire_time: i64,
     ) -> Result<()> {
         msg!("Creating Task Trader...");
 
@@ -39,6 +40,17 @@ pub mod task_trader {
             taker_num,
             coin_type,
             rewards,
+            expire_time,
         )
+    }
+
+    pub fn apply_task(ctx: Context<ApplyTask>) -> Result<()> {
+        msg!("Applying Task Trader...");
+        instructions::apply_task::apply_task(ctx)
+    }
+
+    pub fn approve_application(ctx: Context<ApproveApplication>) -> Result<()> {
+        msg!("Approving Application...");
+        instructions::approve_application::approve_application(ctx)
     }
 }
