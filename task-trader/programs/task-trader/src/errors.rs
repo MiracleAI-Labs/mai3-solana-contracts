@@ -58,4 +58,13 @@ pub enum TaskTraderError {
 
     #[msg("Unauthorized")]
     Unauthorized,
+
+    #[msg("Invalid Applicant")]
+    InvalidApplicant,
+
+    #[msg("Invalid Pool Account")]
+    InvalidPoolAccount,
+
+    #[msg("Invalid Mint")]
+    InvalidMint,
 }

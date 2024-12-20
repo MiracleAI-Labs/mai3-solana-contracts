@@ -91,4 +91,9 @@ pub mod task_trader {
         msg!("Verifying task application...");
         instructions::verify_task_application::verify_task_application(ctx, is_accepted)
     }
+
+    pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
+        msg!("Withdrawing rewards...");
+        instructions::withdraw::withdraw(ctx)
+    }
 }

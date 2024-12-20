@@ -8,6 +8,8 @@ import {
 import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccount,
+  getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 import { assert } from "chai";
 import { getTestContext } from "./setup";
@@ -190,10 +192,6 @@ describe("Task Trader", () => {
       assert.equal(taskInfoAccount.taskId.toNumber(), taskId);
       assert.equal(taskInfoAccount.taskAmount.toNumber(), taskAmount);
       assert.equal(taskInfoAccount.takerNum.toNumber(), takerNum);
-      assert.equal(
-        taskInfoAccount.amountPerTask.toNumber(),
-        taskAmount / takerNum
-      );
       assert.equal(taskInfoAccount.coinType.toNumber(), 0);
       assert.equal(taskInfoAccount.rewards.toNumber(), rewards);
       assert.deepEqual(taskInfoAccount.state, { open: {} });
@@ -272,10 +270,6 @@ describe("Task Trader", () => {
       assert.equal(taskInfoAccount.taskId.toNumber(), taskId);
       assert.equal(taskInfoAccount.taskAmount.toNumber(), taskAmount);
       assert.equal(taskInfoAccount.takerNum.toNumber(), takerNum);
-      assert.equal(
-        taskInfoAccount.amountPerTask.toNumber(),
-        taskAmount / takerNum
-      );
       assert.equal(taskInfoAccount.coinType.toNumber(), 1); // MAI3
       assert.equal(taskInfoAccount.rewards.toNumber(), rewards);
       assert.deepEqual(taskInfoAccount.state, { open: {} });
@@ -446,7 +440,6 @@ describe("Task Trader", () => {
         .signers([applicant])
         .rpc();
 
-      // Reject the application
       await program.methods
         .rejectApplication()
         .accounts({
@@ -454,7 +447,6 @@ describe("Task Trader", () => {
           taskApplication: taskApplication,
           requester: wallet.publicKey,
         })
-        .signers([wallet])
         .rpc();
 
       const taskApplicationAccount =
@@ -1166,6 +1158,360 @@ describe("Task Trader", () => {
         );
       } catch (error) {
         assert.include(error.message, "InvalidApplicationState");
+      }
+    });
+  });
+
+  describe("Withdraw", () => {
+    it("Should withdraw USDT successfully", async () => {
+      const {
+        program,
+        applicant,
+        wallet,
+        admin,
+        poolAuthority,
+        usdtMint,
+        mai3Mint,
+        userUsdtAccount,
+        userMai3Account,
+        poolUsdtAccount,
+        poolMai3Account,
+      } = context;
+      const taskId = 20;
+
+      // Create task first
+      const taskInfo = await createTask(program, {
+        taskId,
+        taskAmount: 1000,
+        takerNum: 1,
+        coinType: 0, // USDT
+        rewards: 100,
+        expireTime: Math.floor(Date.now() / 1000) + 3600,
+        wallet,
+        admin,
+        poolAuthority,
+        usdtMint,
+        mai3Mint,
+        userUsdtAccount,
+        userMai3Account,
+        poolUsdtAccount,
+        poolMai3Account,
+      });
+
+      // Get task application PDA
+      const [taskApplication] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_application"),
+          taskInfo.toBuffer(),
+          applicant.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+      // Apply for task
+      await program.methods
+        .applyTask()
+        .accounts({
+          taskInfo,
+          taskApplication,
+          applicant: applicant.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([applicant])
+        .rpc();
+
+      // Accept application
+      await program.methods
+        .approveApplication()
+        .accounts({
+          taskInfo,
+          taskApplication,
+          requester: wallet.publicKey,
+        })
+        .signers([wallet])
+        .rpc();
+
+      // Submit acceptance
+      await program.methods
+        .submitAcceptance()
+        .accounts({
+          payer: applicant.publicKey,
+          taskApplication,
+        })
+        .signers([applicant])
+        .rpc();
+
+      await program.methods
+        .verifyTaskApplication(true)
+        .accounts({
+          taskApplication,
+          taskInfo,
+          user: wallet.publicKey,
+        })
+        .signers([wallet])
+        .rpc();
+
+      // Get applicant's USDT balance before withdrawal
+
+      const applicantUsdtAccount = await createAssociatedTokenAccount(
+        context.provider.connection,
+        applicant,
+        usdtMint,
+        applicant.publicKey,
+        { commitment: "confirmed" },
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      const applicantMai3Account = await createAssociatedTokenAccount(
+        context.provider.connection,
+        applicant,
+        mai3Mint,
+        applicant.publicKey,
+        { commitment: "confirmed" },
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      const beforeBalance =
+        await context.provider.connection.getTokenAccountBalance(
+          applicantUsdtAccount
+        );
+
+      // Withdraw
+      await program.methods
+        .withdraw()
+        .accounts({
+          user: applicant.publicKey,
+          taskApplication: taskApplication,
+          taskInfo: taskInfo,
+          poolAuthority: poolAuthority,
+          usdtMint: usdtMint,
+          mai3Mint: mai3Mint,
+          userUsdtAccount: applicantUsdtAccount,
+          userMai3Account: applicantMai3Account,
+          poolUsdtAccount: poolUsdtAccount,
+          poolMai3Account: poolMai3Account,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+          rent: SYSVAR_RENT_PUBKEY,
+        })
+        .signers([applicant])
+        .rpc();
+
+      // Verify application state changed to Withdrawed
+      const applicationAfter = await program.account.taskApplication.fetch(
+        taskApplication
+      );
+      assert.deepEqual(applicationAfter.state, {
+        withdrawed: {},
+      });
+
+      // Verify token transfer
+      const afterBalance =
+        await context.provider.connection.getTokenAccountBalance(
+          applicantUsdtAccount
+        );
+      assert.equal(
+        parseInt(afterBalance.value.amount) -
+          parseInt(beforeBalance.value.amount),
+        1000
+      );
+    });
+
+    it("Should fail when application state is not AcceptedByAcceptance", async () => {
+      const {
+        program,
+        applicant,
+        wallet,
+        admin,
+        poolAuthority,
+        usdtMint,
+        mai3Mint,
+        userUsdtAccount,
+        userMai3Account,
+        poolUsdtAccount,
+        poolMai3Account,
+      } = context;
+      const taskId = 21;
+
+      // Create task first
+      const taskInfo = await createTask(program, {
+        taskId,
+        taskAmount: 1000,
+        takerNum: 1,
+        coinType: 0, // USDT
+        rewards: 100,
+        expireTime: Math.floor(Date.now() / 1000) + 3600,
+        wallet,
+        admin,
+        poolAuthority,
+        usdtMint,
+        mai3Mint,
+        userUsdtAccount,
+        userMai3Account,
+        poolUsdtAccount,
+        poolMai3Account,
+      });
+
+      // Get task application PDA
+      const [taskApplication] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_application"),
+          taskInfo.toBuffer(),
+          applicant.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+      // Apply for task
+      await program.methods
+        .applyTask()
+        .accounts({
+          taskInfo,
+          taskApplication,
+          applicant: applicant.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([applicant])
+        .rpc();
+
+      // Accept application
+      await program.methods
+        .approveApplication()
+        .accounts({
+          taskInfo,
+          taskApplication,
+          requester: wallet.publicKey,
+        })
+        .signers([wallet])
+        .rpc();
+
+      // Submit acceptance
+      await program.methods
+        .submitAcceptance()
+        .accounts({
+          payer: applicant.publicKey,
+          taskApplication,
+        })
+        .signers([applicant])
+        .rpc();
+
+      // Get applicant's USDT balance before withdrawal
+      const applicantUsdtAccount = await getAssociatedTokenAddressSync(
+        usdtMint,
+        applicant.publicKey,
+        true,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      const applicantMai3Account = await getAssociatedTokenAddressSync(
+        mai3Mint,
+        applicant.publicKey,
+        true,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      try {
+        // Try to withdraw without acceptance
+        await program.methods
+          .withdraw()
+          .accounts({
+            user: applicant.publicKey,
+            taskApplication: taskApplication,
+            taskInfo: taskInfo,
+            poolAuthority: poolAuthority,
+            usdtMint: usdtMint,
+            mai3Mint: mai3Mint,
+            userUsdtAccount: applicantUsdtAccount,
+            userMai3Account: applicantMai3Account,
+            poolUsdtAccount: poolUsdtAccount,
+            poolMai3Account: poolMai3Account,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+            rent: SYSVAR_RENT_PUBKEY,
+          })
+          .signers([applicant])
+          .rpc();
+        assert.fail(
+          "Should have failed when application state is not AcceptedByAcceptance"
+        );
+      } catch (error) {
+        assert.include(error.message, "InvalidApplicationState");
+      }
+    });
+
+    it("Should fail when wrong applicant tries to withdraw", async () => {
+      const {
+        program,
+        applicant,
+        wallet,
+        admin,
+        poolAuthority,
+        usdtMint,
+        mai3Mint,
+        userUsdtAccount,
+        userMai3Account,
+        poolUsdtAccount,
+        poolMai3Account,
+      } = context;
+      const taskId = 21;
+
+      // Create task first
+      const [taskInfo] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_info"),
+          new anchor.BN(taskId).toArrayLike(Buffer, "le", 8),
+        ],
+        program.programId
+      );
+
+      // Get task application PDA
+      const [taskApplication] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_application"),
+          taskInfo.toBuffer(),
+          applicant.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+      await program.methods
+        .verifyTaskApplication(true)
+        .accounts({
+          taskApplication,
+          taskInfo,
+          user: wallet.publicKey,
+        })
+        .signers([wallet])
+        .rpc();
+
+      try {
+        // Try to withdraw without acceptance
+        await program.methods
+          .withdraw()
+          .accounts({
+            user: wallet.publicKey,
+            taskApplication: taskApplication,
+            taskInfo: taskInfo,
+            poolAuthority: poolAuthority,
+            usdtMint: usdtMint,
+            mai3Mint: mai3Mint,
+            userUsdtAccount: userUsdtAccount,
+            userMai3Account: userMai3Account,
+            poolUsdtAccount: poolUsdtAccount,
+            poolMai3Account: poolMai3Account,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+            rent: SYSVAR_RENT_PUBKEY,
+          })
+          .rpc();
+        assert.fail(
+          "Should have failed when application state is not AcceptedByAcceptance"
+        );
+      } catch (error) {
+        assert.include(error.message, "InvalidApplicant");
       }
     });
   });

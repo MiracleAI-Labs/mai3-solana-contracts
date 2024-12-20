@@ -100,9 +100,6 @@ pub fn create_task(
     if task_amount == 0 || taker_num == 0 {
         return Err(TaskTraderError::InvalidAmount.into());
     }
-    if task_amount % taker_num != 0 {
-        return Err(TaskTraderError::InvalidDivision.into());
-    }
     if coin_type > 1 {
         return Err(TaskTraderError::InvalidCoinType.into());
     }
@@ -137,7 +134,6 @@ pub fn create_task(
     task_info.task_id = task_id;
     task_info.task_amount = task_amount;
     task_info.taker_num = taker_num;
-    task_info.amount_per_task = task_amount / taker_num;
     task_info.coin_type = coin_type;
     task_info.rewards = rewards;
     task_info.expire_time = expire_time;

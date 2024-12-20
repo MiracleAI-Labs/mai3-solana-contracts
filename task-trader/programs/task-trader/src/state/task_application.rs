@@ -8,6 +8,7 @@ pub enum ApplicationState {
     WaitingForAcceptance = 3, // Waiting for Verification
     RejectedByAcceptance = 4, // Verification Failed
     AcceptedByAcceptance = 5, // Verification Passed
+    Withdrawed = 6,           // Withdrawed
 }
 
 #[account]
