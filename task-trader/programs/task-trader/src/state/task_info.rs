@@ -12,7 +12,7 @@ pub struct TaskInfo {
     pub task_amount: u64,
     pub taker_num: u64,
     pub approved_num: u64,
-    pub coin_type: u64, // 0 - usdt, 1 - mai
+    pub coin_mint: Pubkey,
     pub rewards: u64,
     pub expire_time: i64,
     pub state: TaskState,
@@ -20,5 +20,5 @@ pub struct TaskInfo {
 }
 
 impl TaskInfo {
-    pub const INIT_SPACE: usize = 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 32 + 1;
+    pub const INIT_SPACE: usize = 8 + 8 + 8 + 8 + 32 + 8 + 8 + 8 + 8 + 32 + 1;
 }

@@ -27,3 +27,6 @@ pub use verify_task_application::*;
 
 pub mod withdraw;
 pub use withdraw::*;
+
+pub mod update_task_support_coin;
+pub use update_task_support_coin::*;

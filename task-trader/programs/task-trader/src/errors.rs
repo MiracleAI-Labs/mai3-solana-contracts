@@ -26,8 +26,8 @@ pub enum TaskTraderError {
     #[msg("Invalid division")]
     InvalidDivision,
 
-    #[msg("Invalid coin type")]
-    InvalidCoinType,
+    #[msg("Invalid coin mint")]
+    InvalidCoinMint,
 
     #[msg("Invalid expire time")]
     InvalidExpireTime,

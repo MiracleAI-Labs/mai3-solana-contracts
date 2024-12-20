@@ -10,6 +10,7 @@ use crate::{
     errors::TaskTraderError,
     state::{
         admin::Admin,
+        support_coin::SupportCoin,
         task_info::{TaskInfo, TaskState},
     },
     utils::token_utils,
@@ -44,41 +45,29 @@ pub struct CreateTask<'info> {
     )]
     pub task_info: Account<'info, TaskInfo>,
 
-    pub usdt_mint: Account<'info, Mint>,
-
-    pub mai3_mint: Account<'info, Mint>,
+    pub coin_mint: Account<'info, Mint>,
 
     #[account(
         init_if_needed,
         payer = user,
-        associated_token::mint = usdt_mint,
+        associated_token::mint = coin_mint,
         associated_token::authority = user,
     )]
-    pub user_usdt_account: Box<Account<'info, TokenAccount>>,
+    pub user_coin_account: Box<Account<'info, TokenAccount>>,
 
     #[account(
         init_if_needed,
         payer = user,
-        associated_token::mint = mai3_mint,
-        associated_token::authority = user,
-    )]
-    pub user_mai3_account: Box<Account<'info, TokenAccount>>,
-
-    #[account(
-        init_if_needed,
-        payer = user,
-        associated_token::mint = usdt_mint,
+        associated_token::mint = coin_mint,
         associated_token::authority = pool_authority,
     )]
-    pub pool_usdt_account: Box<Account<'info, TokenAccount>>,
+    pub pool_coin_account: Box<Account<'info, TokenAccount>>,
 
     #[account(
-        init_if_needed,
-        payer = user,
-        associated_token::mint = mai3_mint,
-        associated_token::authority = pool_authority,
+        seeds = [b"support_coin"],
+        bump,
     )]
-    pub pool_mai3_account: Box<Account<'info, TokenAccount>>,
+    pub support_coin: Account<'info, SupportCoin>,
 
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -91,8 +80,8 @@ pub fn create_task(
     task_id: u64,
     task_amount: u64,
     taker_num: u64,
-    coin_type: u64, // usdt, mai
-    rewards: u64,   // mai
+    coin_mint: Pubkey, // usdt, mai
+    rewards: u64,      // mai
     expire_time: i64,
 ) -> Result<()> {
     msg!("Creating task...");
@@ -100,8 +89,8 @@ pub fn create_task(
     if task_amount == 0 || taker_num == 0 {
         return Err(TaskTraderError::InvalidAmount.into());
     }
-    if coin_type > 1 {
-        return Err(TaskTraderError::InvalidCoinType.into());
+    if !ctx.accounts.support_coin.coin_mints.contains(&coin_mint) {
+        return Err(TaskTraderError::InvalidCoinMint.into());
     }
     let current_time = Clock::get()?.unix_timestamp;
     require!(
@@ -109,32 +98,21 @@ pub fn create_task(
         TaskTraderError::InvalidExpireTime
     );
 
-    if coin_type == 0 {
-        token_utils::transfer_token(
-            ctx.accounts.token_program.to_account_info(),
-            ctx.accounts.user_usdt_account.to_account_info(),
-            ctx.accounts.pool_usdt_account.to_account_info(),
-            ctx.accounts.user.to_account_info(),
-            (task_amount + rewards) * taker_num,
-            None,
-        )?;
-    } else {
-        token_utils::transfer_token(
-            ctx.accounts.token_program.to_account_info(),
-            ctx.accounts.user_mai3_account.to_account_info(),
-            ctx.accounts.pool_mai3_account.to_account_info(),
-            ctx.accounts.user.to_account_info(),
-            (task_amount + rewards) * taker_num,
-            None,
-        )?;
-    }
+    token_utils::transfer_token(
+        ctx.accounts.token_program.to_account_info(),
+        ctx.accounts.user_coin_account.to_account_info(),
+        ctx.accounts.pool_coin_account.to_account_info(),
+        ctx.accounts.user.to_account_info(),
+        (task_amount + rewards) * taker_num,
+        None,
+    )?;
 
     // Initialize task info
     let task_info = &mut ctx.accounts.task_info;
     task_info.task_id = task_id;
     task_info.task_amount = task_amount;
     task_info.taker_num = taker_num;
-    task_info.coin_type = coin_type;
+    task_info.coin_mint = coin_mint;
     task_info.rewards = rewards;
     task_info.expire_time = expire_time;
     task_info.state = TaskState::Open;

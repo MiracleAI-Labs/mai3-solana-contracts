@@ -37,8 +37,8 @@ pub mod task_trader {
         task_id: u64,
         task_amount: u64,
         taker_num: u64,
-        coin_type: u64, // usdt, mai
-        rewards: u64,   // mai
+        coin_mint: Pubkey, // usdt, mai
+        rewards: u64,      // mai
         expire_time: i64,
     ) -> Result<()> {
         msg!("Creating Task Trader...");
@@ -48,7 +48,7 @@ pub mod task_trader {
             task_id,
             task_amount,
             taker_num,
-            coin_type,
+            coin_mint,
             rewards,
             expire_time,
         )
@@ -95,5 +95,13 @@ pub mod task_trader {
     pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
         msg!("Withdrawing rewards...");
         instructions::withdraw::withdraw(ctx)
+    }
+
+    pub fn update_task_support_coin(
+        ctx: Context<UpdateTaskSupportCoin>,
+        coin_mints: Vec<Pubkey>,
+    ) -> Result<()> {
+        msg!("Updating task support coin...");
+        instructions::update_task_support_coin::update_task_support_coin(ctx, coin_mints)
     }
 }

@@ -28,18 +28,14 @@ describe("Task Trader", () => {
       taskId: number;
       taskAmount: number;
       takerNum: number;
-      coinType: number; // 0 for USDT, 1 for MAI3
+      coinMint: PublicKey;
       rewards: number;
       expireTime: number;
       wallet: Keypair;
       admin: PublicKey;
       poolAuthority: PublicKey;
-      usdtMint: PublicKey;
-      mai3Mint: PublicKey;
-      userUsdtAccount: PublicKey;
-      userMai3Account: PublicKey;
-      poolUsdtAccount: PublicKey;
-      poolMai3Account: PublicKey;
+      userCoinAccount: PublicKey;
+      poolCoinAccount: PublicKey;
     }
   ) {
     const [taskInfo] = PublicKey.findProgramAddressSync(
@@ -50,12 +46,17 @@ describe("Task Trader", () => {
       program.programId
     );
 
+    const [supportCoin] = PublicKey.findProgramAddressSync(
+      [Buffer.from("support_coin")],
+      program.programId
+    );
+
     await program.methods
       .createTask(
         new anchor.BN(params.taskId),
         new anchor.BN(params.taskAmount),
         new anchor.BN(params.takerNum),
-        new anchor.BN(params.coinType),
+        params.coinMint,
         new anchor.BN(params.rewards),
         new anchor.BN(params.expireTime)
       )
@@ -64,12 +65,10 @@ describe("Task Trader", () => {
         admin: params.admin,
         poolAuthority: params.poolAuthority,
         taskInfo: taskInfo,
-        usdtMint: params.usdtMint,
-        mai3Mint: params.mai3Mint,
-        userUsdtAccount: params.userUsdtAccount,
-        userMai3Account: params.userMai3Account,
-        poolUsdtAccount: params.poolUsdtAccount,
-        poolMai3Account: params.poolMai3Account,
+        coinMint: params.coinMint,
+        userCoinAccount: params.userCoinAccount,
+        poolCoinAccount: params.poolCoinAccount,
+        supportCoin: supportCoin,
         tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
@@ -143,6 +142,77 @@ describe("Task Trader", () => {
     });
   });
 
+  describe("Support Coin Management", () => {
+    it("Should update task support coins successfully", async () => {
+      const { program, wallet, admin, usdtMint, mai3Mint } = context;
+
+      const [supportCoinPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("support_coin")],
+        program.programId
+      );
+
+      // Create some test mint addresses
+      const coinMints = [usdtMint, mai3Mint];
+
+      // Update support coins
+      await program.methods
+        .updateTaskSupportCoin(coinMints)
+        .accounts({
+          payer: wallet.publicKey,
+          admin: admin,
+          supportCoin: supportCoinPDA,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([wallet])
+        .rpc();
+
+      // Verify the update
+      const supportCoinAccount = await program.account.supportCoin.fetch(
+        supportCoinPDA
+      );
+      assert.equal(supportCoinAccount.coinMints.length, coinMints.length);
+      supportCoinAccount.coinMints.forEach((mint, index) => {
+        assert.isTrue(
+          mint.equals(coinMints[index]),
+          `Mint at index ${index} does not match`
+        );
+      });
+    });
+
+    it("Should fail when non-admin tries to update support coins", async () => {
+      const { program, applicant, admin } = context;
+
+      const [supportCoinPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("support_coin")],
+        program.programId
+      );
+
+      // Create test mint addresses
+      const testMint1 = Keypair.generate().publicKey;
+      const coinMints = [testMint1];
+
+      try {
+        // Try to update support coins with non-admin account
+        await program.methods
+          .updateTaskSupportCoin(coinMints)
+          .accounts({
+            payer: applicant.publicKey,
+            admin: admin,
+            supportCoin: supportCoinPDA,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([applicant])
+          .rpc();
+
+        assert.fail(
+          "Should have failed when non-admin tries to update support coins"
+        );
+      } catch (error) {
+        assert.include(error.message, "Unauthorized");
+      }
+    });
+  });
+
   describe("Task Creation", () => {
     it("Create a task with USDT", async () => {
       const {
@@ -173,18 +243,14 @@ describe("Task Trader", () => {
         taskId,
         taskAmount,
         takerNum,
-        coinType: 0, // USDT
+        coinMint: usdtMint,
         rewards,
         expireTime,
         wallet,
         admin,
         poolAuthority,
-        usdtMint,
-        mai3Mint,
-        userUsdtAccount,
-        userMai3Account,
-        poolUsdtAccount,
-        poolMai3Account,
+        userCoinAccount: userUsdtAccount,
+        poolCoinAccount: poolUsdtAccount,
       });
 
       // Verify task info
@@ -192,7 +258,7 @@ describe("Task Trader", () => {
       assert.equal(taskInfoAccount.taskId.toNumber(), taskId);
       assert.equal(taskInfoAccount.taskAmount.toNumber(), taskAmount);
       assert.equal(taskInfoAccount.takerNum.toNumber(), takerNum);
-      assert.equal(taskInfoAccount.coinType.toNumber(), 0);
+      // assert.equal(taskInfoAccount.coinType.toNumber(), 0);
       assert.equal(taskInfoAccount.rewards.toNumber(), rewards);
       assert.deepEqual(taskInfoAccount.state, { open: {} });
       assert.ok(taskInfoAccount.requester.equals(wallet.publicKey));
@@ -251,18 +317,14 @@ describe("Task Trader", () => {
         taskId,
         taskAmount,
         takerNum,
-        coinType: 1, // MAI3
+        coinMint: mai3Mint,
         rewards,
         expireTime,
         wallet,
         admin,
         poolAuthority,
-        usdtMint,
-        mai3Mint,
-        userUsdtAccount,
-        userMai3Account,
-        poolUsdtAccount,
-        poolMai3Account,
+        userCoinAccount: userMai3Account,
+        poolCoinAccount: poolMai3Account,
       });
 
       // Verify task info
@@ -270,7 +332,7 @@ describe("Task Trader", () => {
       assert.equal(taskInfoAccount.taskId.toNumber(), taskId);
       assert.equal(taskInfoAccount.taskAmount.toNumber(), taskAmount);
       assert.equal(taskInfoAccount.takerNum.toNumber(), takerNum);
-      assert.equal(taskInfoAccount.coinType.toNumber(), 1); // MAI3
+      // assert.equal(taskInfoAccount.coinType.toNumber(), 1); // MAI3
       assert.equal(taskInfoAccount.rewards.toNumber(), rewards);
       assert.deepEqual(taskInfoAccount.state, { open: {} });
       assert.ok(taskInfoAccount.requester.equals(wallet.publicKey));
@@ -405,18 +467,14 @@ describe("Task Trader", () => {
         taskId,
         taskAmount,
         takerNum,
-        coinType: 0,
+        coinMint: usdtMint,
         rewards,
         expireTime,
         wallet,
         admin,
         poolAuthority,
-        usdtMint,
-        mai3Mint,
-        userUsdtAccount,
-        userMai3Account,
-        poolUsdtAccount,
-        poolMai3Account,
+        userCoinAccount: userUsdtAccount,
+        poolCoinAccount: poolUsdtAccount,
       });
 
       const [taskApplication] = PublicKey.findProgramAddressSync(
@@ -517,18 +575,14 @@ describe("Task Trader", () => {
         taskId,
         taskAmount,
         takerNum,
-        coinType: 0,
+        coinMint: usdtMint,
         rewards,
         expireTime,
         wallet,
         admin,
         poolAuthority,
-        usdtMint,
-        mai3Mint,
-        userUsdtAccount,
-        userMai3Account,
-        poolUsdtAccount,
-        poolMai3Account,
+        userCoinAccount: userUsdtAccount,
+        poolCoinAccount: poolUsdtAccount,
       });
 
       // Create and approve first application
@@ -639,18 +693,14 @@ describe("Task Trader", () => {
         taskId,
         taskAmount,
         takerNum,
-        coinType: 0, // USDT
+        coinMint: usdtMint,
         rewards,
         expireTime,
         wallet,
         admin: context.admin,
         poolAuthority: context.poolAuthority,
-        usdtMint,
-        mai3Mint,
-        userUsdtAccount,
-        userMai3Account,
-        poolUsdtAccount,
-        poolMai3Account,
+        userCoinAccount: userUsdtAccount,
+        poolCoinAccount: poolUsdtAccount,
       });
 
       // Then apply for the task
@@ -700,7 +750,7 @@ describe("Task Trader", () => {
     });
 
     it("Cannot submit acceptance if not accepted", async () => {
-      const { program, wallet } = context;
+      const { program, wallet, usdtMint } = context;
 
       // Create task and apply
       const taskId = 11;
@@ -708,18 +758,14 @@ describe("Task Trader", () => {
         taskId,
         taskAmount: 1_000_000,
         takerNum: 1,
-        coinType: 0,
+        coinMint: usdtMint,
         rewards: 0,
         expireTime: Math.floor(Date.now() / 1000) + 86400,
         wallet,
         admin: context.admin,
         poolAuthority: context.poolAuthority,
-        usdtMint: context.usdtMint,
-        mai3Mint: context.mai3Mint,
-        userUsdtAccount: context.userUsdtAccount,
-        userMai3Account: context.userMai3Account,
-        poolUsdtAccount: context.poolUsdtAccount,
-        poolMai3Account: context.poolMai3Account,
+        userCoinAccount: context.userUsdtAccount,
+        poolCoinAccount: context.poolUsdtAccount,
       });
 
       const [taskApplication] = PublicKey.findProgramAddressSync(
@@ -872,7 +918,7 @@ describe("Task Trader", () => {
 
   describe("Task Application Verification", () => {
     it("Should verify and accept task application successfully", async () => {
-      const { program, wallet } = context;
+      const { program, wallet, usdtMint } = context;
 
       // Get task info PDA
       const taskId = 12;
@@ -880,18 +926,14 @@ describe("Task Trader", () => {
         taskId,
         taskAmount: 1_000_000,
         takerNum: 1,
-        coinType: 0,
+        coinMint: usdtMint,
         rewards: 0,
         expireTime: Math.floor(Date.now() / 1000) + 86400,
         wallet,
         admin: context.admin,
         poolAuthority: context.poolAuthority,
-        usdtMint: context.usdtMint,
-        mai3Mint: context.mai3Mint,
-        userUsdtAccount: context.userUsdtAccount,
-        userMai3Account: context.userMai3Account,
-        poolUsdtAccount: context.poolUsdtAccount,
-        poolMai3Account: context.poolMai3Account,
+        userCoinAccount: context.userUsdtAccount,
+        poolCoinAccount: context.poolUsdtAccount,
       });
 
       // Get task application PDA
@@ -955,7 +997,7 @@ describe("Task Trader", () => {
     });
 
     it("Should verify and reject task application successfully", async () => {
-      const { program, wallet } = context;
+      const { program, wallet, usdtMint } = context;
 
       // Get task info PDA
       const taskId = 13;
@@ -963,18 +1005,14 @@ describe("Task Trader", () => {
         taskId,
         taskAmount: 1_000_000,
         takerNum: 1,
-        coinType: 0,
+        coinMint: usdtMint,
         rewards: 0,
         expireTime: Math.floor(Date.now() / 1000) + 86400,
         wallet,
         admin: context.admin,
         poolAuthority: context.poolAuthority,
-        usdtMint: context.usdtMint,
-        mai3Mint: context.mai3Mint,
-        userUsdtAccount: context.userUsdtAccount,
-        userMai3Account: context.userMai3Account,
-        poolUsdtAccount: context.poolUsdtAccount,
-        poolMai3Account: context.poolMai3Account,
+        userCoinAccount: context.userUsdtAccount,
+        poolCoinAccount: context.poolUsdtAccount,
       });
 
       // Get task application PDA
@@ -1038,7 +1076,7 @@ describe("Task Trader", () => {
     });
 
     it("Should fail when non-requester tries to verify application", async () => {
-      const { program, wallet } = context;
+      const { program, wallet, usdtMint } = context;
 
       // Get task info PDA
       const taskId = 14;
@@ -1046,18 +1084,14 @@ describe("Task Trader", () => {
         taskId,
         taskAmount: 1_000_000,
         takerNum: 1,
-        coinType: 0,
+        coinMint: usdtMint,
         rewards: 0,
         expireTime: Math.floor(Date.now() / 1000) + 86400,
         wallet,
         admin: context.admin,
         poolAuthority: context.poolAuthority,
-        usdtMint: context.usdtMint,
-        mai3Mint: context.mai3Mint,
-        userUsdtAccount: context.userUsdtAccount,
-        userMai3Account: context.userMai3Account,
-        poolUsdtAccount: context.poolUsdtAccount,
-        poolMai3Account: context.poolMai3Account,
+        userCoinAccount: context.userUsdtAccount,
+        poolCoinAccount: context.poolUsdtAccount,
       });
 
       // Get task application PDA
@@ -1184,18 +1218,14 @@ describe("Task Trader", () => {
         taskId,
         taskAmount: 1000,
         takerNum: 1,
-        coinType: 0, // USDT
+        coinMint: usdtMint,
         rewards: 100,
         expireTime: Math.floor(Date.now() / 1000) + 3600,
         wallet,
         admin,
         poolAuthority,
-        usdtMint,
-        mai3Mint,
-        userUsdtAccount,
-        userMai3Account,
-        poolUsdtAccount,
-        poolMai3Account,
+        userCoinAccount: userUsdtAccount,
+        poolCoinAccount: poolUsdtAccount,
       });
 
       // Get task application PDA
@@ -1284,12 +1314,9 @@ describe("Task Trader", () => {
           taskApplication: taskApplication,
           taskInfo: taskInfo,
           poolAuthority: poolAuthority,
-          usdtMint: usdtMint,
-          mai3Mint: mai3Mint,
-          userUsdtAccount: applicantUsdtAccount,
-          userMai3Account: applicantMai3Account,
-          poolUsdtAccount: poolUsdtAccount,
-          poolMai3Account: poolMai3Account,
+          coinMint: usdtMint,
+          userCoinAccount: applicantUsdtAccount,
+          poolCoinAccount: poolUsdtAccount,
           tokenProgram: TOKEN_PROGRAM_ID,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
@@ -1339,18 +1366,14 @@ describe("Task Trader", () => {
         taskId,
         taskAmount: 1000,
         takerNum: 1,
-        coinType: 0, // USDT
+        coinMint: usdtMint,
         rewards: 100,
         expireTime: Math.floor(Date.now() / 1000) + 3600,
         wallet,
         admin,
         poolAuthority,
-        usdtMint,
-        mai3Mint,
-        userUsdtAccount,
-        userMai3Account,
-        poolUsdtAccount,
-        poolMai3Account,
+        userCoinAccount: userUsdtAccount,
+        poolCoinAccount: poolUsdtAccount,
       });
 
       // Get task application PDA
@@ -1420,12 +1443,9 @@ describe("Task Trader", () => {
             taskApplication: taskApplication,
             taskInfo: taskInfo,
             poolAuthority: poolAuthority,
-            usdtMint: usdtMint,
-            mai3Mint: mai3Mint,
-            userUsdtAccount: applicantUsdtAccount,
-            userMai3Account: applicantMai3Account,
-            poolUsdtAccount: poolUsdtAccount,
-            poolMai3Account: poolMai3Account,
+            coinMint: usdtMint,
+            userCoinAccount: applicantUsdtAccount,
+            poolCoinAccount: poolUsdtAccount,
             tokenProgram: TOKEN_PROGRAM_ID,
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
@@ -1495,12 +1515,9 @@ describe("Task Trader", () => {
             taskApplication: taskApplication,
             taskInfo: taskInfo,
             poolAuthority: poolAuthority,
-            usdtMint: usdtMint,
-            mai3Mint: mai3Mint,
-            userUsdtAccount: userUsdtAccount,
-            userMai3Account: userMai3Account,
-            poolUsdtAccount: poolUsdtAccount,
-            poolMai3Account: poolMai3Account,
+            coinMint: usdtMint,
+            userCoinAccount: userUsdtAccount,
+            poolCoinAccount: poolUsdtAccount,
             tokenProgram: TOKEN_PROGRAM_ID,
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,

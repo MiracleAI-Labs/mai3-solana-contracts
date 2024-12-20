@@ -38,39 +38,26 @@ pub struct Withdraw<'info> {
     )]
     pub pool_authority: AccountInfo<'info>,
 
-    pub usdt_mint: Account<'info, Mint>,
-
-    pub mai3_mint: Account<'info, Mint>,
+    #[account(
+        mut,
+        constraint = coin_mint.key() == task_info.coin_mint @ TaskTraderError::InvalidMint,
+    )]
+    pub coin_mint: Account<'info, Mint>,
 
     #[account(
         init_if_needed,
         payer = user,
-        associated_token::mint = usdt_mint,
+        associated_token::mint = coin_mint,
         associated_token::authority = user,
     )]
-    pub user_usdt_account: Box<Account<'info, TokenAccount>>,
-
-    #[account(
-        init_if_needed,
-        payer = user,
-        associated_token::mint = mai3_mint,
-        associated_token::authority = user,
-    )]
-    pub user_mai3_account: Box<Account<'info, TokenAccount>>,
+    pub user_coin_account: Box<Account<'info, TokenAccount>>,
 
     #[account(
         mut,
-        constraint = pool_usdt_account.owner == pool_authority.key() @ TaskTraderError::InvalidPoolAccount,
-        constraint = pool_usdt_account.mint == usdt_mint.key() @ TaskTraderError::InvalidMint,
+        constraint = pool_coin_account.owner == pool_authority.key() @ TaskTraderError::InvalidPoolAccount,
+        constraint = pool_coin_account.mint == coin_mint.key() @ TaskTraderError::InvalidMint,
     )]
-    pub pool_usdt_account: Box<Account<'info, TokenAccount>>,
-
-    #[account(
-        mut,
-        constraint = pool_mai3_account.owner == pool_authority.key() @ TaskTraderError::InvalidPoolAccount,
-        constraint = pool_mai3_account.mint == mai3_mint.key() @ TaskTraderError::InvalidMint,
-    )]
-    pub pool_mai3_account: Box<Account<'info, TokenAccount>>,
+    pub pool_coin_account: Box<Account<'info, TokenAccount>>,
 
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -82,25 +69,14 @@ pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
     let task_info = &ctx.accounts.task_info;
     let seeds = &[b"pool_authority".as_ref(), &[ctx.bumps.pool_authority]];
 
-    if task_info.coin_type == 0 {
-        token_utils::transfer_token(
-            ctx.accounts.token_program.to_account_info(),
-            ctx.accounts.pool_usdt_account.to_account_info(),
-            ctx.accounts.user_usdt_account.to_account_info(),
-            ctx.accounts.pool_authority.to_account_info(),
-            task_info.task_amount,
-            Some(&[seeds]),
-        )?;
-    } else {
-        token_utils::transfer_token(
-            ctx.accounts.token_program.to_account_info(),
-            ctx.accounts.pool_mai3_account.to_account_info(),
-            ctx.accounts.user_mai3_account.to_account_info(),
-            ctx.accounts.pool_authority.to_account_info(),
-            task_info.task_amount,
-            Some(&[seeds]),
-        )?;
-    }
+    token_utils::transfer_token(
+        ctx.accounts.token_program.to_account_info(),
+        ctx.accounts.pool_coin_account.to_account_info(),
+        ctx.accounts.user_coin_account.to_account_info(),
+        ctx.accounts.pool_authority.to_account_info(),
+        task_info.task_amount,
+        Some(&[seeds]),
+    )?;
 
     let task_application = &mut ctx.accounts.task_application;
     task_application.state = ApplicationState::Withdrawed;
