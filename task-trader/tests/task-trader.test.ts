@@ -112,11 +112,6 @@ describe("Task Trader", () => {
         program.programId
       );
 
-      const initialUsdtBalance =
-        await program.provider.connection.getTokenAccountBalance(
-          userUsdtAccount
-        );
-
       await program.methods
         .createTask(
           new anchor.BN(taskId),
@@ -158,27 +153,6 @@ describe("Task Trader", () => {
       assert.equal(taskInfoAccount.rewards.toNumber(), rewards);
       assert.deepEqual(taskInfoAccount.state, { open: {} });
       assert.ok(taskInfoAccount.requester.equals(wallet.publicKey));
-
-      // Verify token transfer
-      const finalUsdtBalance =
-        await program.provider.connection.getTokenAccountBalance(
-          userUsdtAccount
-        );
-      assert.equal(
-        finalUsdtBalance.value.amount,
-        (parseInt(initialUsdtBalance.value.amount) - taskAmount).toString(),
-        "USDT not transferred correctly"
-      );
-
-      const poolUsdtBalance =
-        await program.provider.connection.getTokenAccountBalance(
-          poolUsdtAccount
-        );
-      assert.equal(
-        poolUsdtBalance.value.amount,
-        taskAmount.toString(),
-        "Pool USDT balance incorrect"
-      );
     });
 
     it("Create a task with MAI3", async () => {
@@ -208,11 +182,6 @@ describe("Task Trader", () => {
         ],
         program.programId
       );
-
-      const initialMai3Balance =
-        await program.provider.connection.getTokenAccountBalance(
-          userMai3Account
-        );
 
       await program.methods
         .createTask(
@@ -255,27 +224,6 @@ describe("Task Trader", () => {
       assert.equal(taskInfoAccount.rewards.toNumber(), rewards);
       assert.deepEqual(taskInfoAccount.state, { open: {} });
       assert.ok(taskInfoAccount.requester.equals(wallet.publicKey));
-
-      // Verify token transfer
-      const finalMai3Balance =
-        await program.provider.connection.getTokenAccountBalance(
-          userMai3Account
-        );
-      assert.equal(
-        finalMai3Balance.value.amount,
-        (parseInt(initialMai3Balance.value.amount) - taskAmount).toString(),
-        "MAI3 not transferred correctly"
-      );
-
-      const poolMai3Balance =
-        await program.provider.connection.getTokenAccountBalance(
-          poolMai3Account
-        );
-      assert.equal(
-        poolMai3Balance.value.amount,
-        taskAmount.toString(),
-        "Pool MAI3 balance incorrect"
-      );
     });
   });
 
@@ -357,7 +305,103 @@ describe("Task Trader", () => {
       assert.equal(taskInfoAccount.approvedNum.toNumber(), 1);
     });
 
-    it("Should fail when non-requester tries to approve application", async () => {
+    it("Reject an application", async () => {
+      const {
+        program,
+        wallet,
+        admin,
+        poolAuthority,
+        usdtMint,
+        mai3Mint,
+        userUsdtAccount,
+        userMai3Account,
+        poolUsdtAccount,
+        poolMai3Account,
+        applicant,
+      } = context;
+
+      // Create a new task first
+      const taskId = 4; // Using a new task ID
+      const taskAmount = 100_000_000;
+      const takerNum = 2;
+      const rewards = 50_000_000;
+      const expireTime = Math.floor(Date.now() / 1000) + 86400;
+
+      const [taskInfo] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_info"),
+          new anchor.BN(taskId).toArrayLike(Buffer, "le", 8),
+        ],
+        program.programId
+      );
+
+      // Create the task
+      await program.methods
+        .createTask(
+          new anchor.BN(taskId),
+          new anchor.BN(taskAmount),
+          new anchor.BN(takerNum),
+          new anchor.BN(0),
+          new anchor.BN(rewards),
+          new anchor.BN(expireTime)
+        )
+        .accounts({
+          user: wallet.publicKey,
+          admin: admin,
+          poolAuthority: poolAuthority,
+          taskInfo: taskInfo,
+          usdtMint: usdtMint,
+          mai3Mint: mai3Mint,
+          userUsdtAccount: userUsdtAccount,
+          userMai3Account: userMai3Account,
+          poolUsdtAccount: poolUsdtAccount,
+          poolMai3Account: poolMai3Account,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+          rent: SYSVAR_RENT_PUBKEY,
+        })
+        .signers([wallet])
+        .rpc();
+
+      const [taskApplication] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_application"),
+          taskInfo.toBuffer(),
+          applicant.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+      // Apply for the task
+      await program.methods
+        .applyTask()
+        .accounts({
+          taskInfo: taskInfo,
+          taskApplication: taskApplication,
+          applicant: applicant.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([applicant])
+        .rpc();
+
+      // Reject the application
+      await program.methods
+        .rejectApplication()
+        .accounts({
+          taskInfo: taskInfo,
+          taskApplication: taskApplication,
+          requester: wallet.publicKey,
+        })
+        .signers([wallet])
+        .rpc();
+
+      const taskApplicationAccount =
+        await program.account.taskApplication.fetch(taskApplication);
+      assert.deepEqual(taskApplicationAccount.state, { rejected: {} });
+    });
+
+    it("Should fail when non-requester tries to reject application", async () => {
       const { program, applicant } = context;
       const taskId = 1;
 
@@ -380,7 +424,7 @@ describe("Task Trader", () => {
 
       try {
         await program.methods
-          .approveApplication()
+          .rejectApplication()
           .accounts({
             taskInfo: taskInfo,
             taskApplication: taskApplication,

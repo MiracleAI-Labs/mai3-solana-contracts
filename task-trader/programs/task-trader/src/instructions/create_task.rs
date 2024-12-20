@@ -125,24 +125,5 @@ pub fn create_task(
     task_info.approved_num = 0;
     task_info.requester = ctx.accounts.user.key();
 
-    if coin_type == 0 {
-        token_utils::transfer_token(
-            ctx.accounts.token_program.to_account_info(),
-            ctx.accounts.user_usdt_account.to_account_info(),
-            ctx.accounts.pool_usdt_account.to_account_info(),
-            ctx.accounts.user.to_account_info(),
-            task_amount,
-            None,
-        )?;
-    } else {
-        token_utils::transfer_token(
-            ctx.accounts.token_program.to_account_info(),
-            ctx.accounts.user_mai3_account.to_account_info(),
-            ctx.accounts.pool_mai3_account.to_account_info(),
-            ctx.accounts.user.to_account_info(),
-            task_amount,
-            None,
-        )?;
-    }
     Ok(())
 }

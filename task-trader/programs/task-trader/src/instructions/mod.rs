@@ -15,3 +15,6 @@ pub use setup_task_state::*;
 
 pub mod update_admin;
 pub use update_admin::*;
+
+pub mod reject_application;
+pub use reject_application::*;
