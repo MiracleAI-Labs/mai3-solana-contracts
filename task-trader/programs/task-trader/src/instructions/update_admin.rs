@@ -12,8 +12,6 @@ pub struct UpdateAdmin<'info> {
         constraint = admin.signer == *payer.key @ TaskTraderError::Unauthorized
     )]
     pub admin: Account<'info, Admin>,
-    pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
 }
 
 pub fn update_admin(ctx: Context<UpdateAdmin>, signer: Pubkey, fee_receiver: Pubkey) -> Result<()> {

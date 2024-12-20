@@ -21,3 +21,6 @@ pub use reject_application::*;
 
 pub mod submit_acceptance;
 pub use submit_acceptance::*;
+
+pub mod verify_task_application;
+pub use verify_task_application::*;

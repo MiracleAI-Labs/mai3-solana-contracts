@@ -83,4 +83,12 @@ pub mod task_trader {
         msg!("Close Task ...");
         instructions::setup_task_state::close_task(ctx)
     }
+
+    pub fn verify_task_application(
+        ctx: Context<VerifyTaskApplication>,
+        is_accepted: bool,
+    ) -> Result<()> {
+        msg!("Verifying task application...");
+        instructions::verify_task_application::verify_task_application(ctx, is_accepted)
+    }
 }

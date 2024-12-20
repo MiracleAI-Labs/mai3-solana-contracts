@@ -95,8 +95,6 @@ describe("Task Trader", () => {
           .accounts({
             payer: signer.publicKey,
             admin: admin,
-            system_program: SystemProgram.programId,
-            rent: SYSVAR_RENT_PUBKEY,
           })
           .signers([signer])
           .rpc();
@@ -698,7 +696,6 @@ describe("Task Trader", () => {
         .accounts({
           applicant: wallet.publicKey,
           taskApplication: taskApplication,
-          systemProgram: SystemProgram.programId,
         })
         .rpc();
 
@@ -758,7 +755,6 @@ describe("Task Trader", () => {
           .accounts({
             applicant: wallet.publicKey,
             taskApplication: taskApplication,
-            systemProgram: SystemProgram.programId,
           })
           .rpc();
         assert.fail("Should have failed");
@@ -877,6 +873,298 @@ describe("Task Trader", () => {
         assert.fail("Should have failed when applying for a closed task");
       } catch (error) {
         assert.include(error.message, "InvalidTaskState");
+      }
+    });
+  });
+
+  describe("Task Application Verification", () => {
+    it("Should verify and accept task application successfully", async () => {
+      const { program, wallet } = context;
+
+      // Get task info PDA
+      const taskId = 12;
+      const taskInfo = await createTask(program, {
+        taskId,
+        taskAmount: 1_000_000,
+        takerNum: 1,
+        coinType: 0,
+        rewards: 0,
+        expireTime: Math.floor(Date.now() / 1000) + 86400,
+        wallet,
+        admin: context.admin,
+        poolAuthority: context.poolAuthority,
+        usdtMint: context.usdtMint,
+        mai3Mint: context.mai3Mint,
+        userUsdtAccount: context.userUsdtAccount,
+        userMai3Account: context.userMai3Account,
+        poolUsdtAccount: context.poolUsdtAccount,
+        poolMai3Account: context.poolMai3Account,
+      });
+
+      // Get task application PDA
+      const [taskApplication] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_application"),
+          taskInfo.toBuffer(),
+          context.applicant.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+      await program.methods
+        .applyTask()
+        .accounts({
+          taskInfo: taskInfo,
+          taskApplication: taskApplication,
+          applicant: context.applicant.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([context.applicant])
+        .rpc();
+
+      await program.methods
+        .approveApplication()
+        .accounts({
+          taskInfo,
+          taskApplication,
+          requester: wallet.publicKey,
+        })
+        .rpc();
+
+      // First submit acceptance to get into WaitingForAcceptance state
+      await program.methods
+        .submitAcceptance()
+        .accounts({
+          payer: context.applicant.publicKey,
+          taskApplication: taskApplication,
+        })
+        .signers([context.applicant])
+        .rpc();
+
+      // Now verify and accept the task application
+      await program.methods
+        .verifyTaskApplication(true)
+        .accounts({
+          taskApplication,
+          taskInfo,
+          user: wallet.publicKey,
+        })
+        .signers([wallet])
+        .rpc();
+
+      // Verify the application state
+      const applicationData = await program.account.taskApplication.fetch(
+        taskApplication
+      );
+      assert.deepEqual(applicationData.state, {
+        acceptedByAcceptance: {},
+      });
+    });
+
+    it("Should verify and reject task application successfully", async () => {
+      const { program, wallet } = context;
+
+      // Get task info PDA
+      const taskId = 13;
+      const taskInfo = await createTask(program, {
+        taskId,
+        taskAmount: 1_000_000,
+        takerNum: 1,
+        coinType: 0,
+        rewards: 0,
+        expireTime: Math.floor(Date.now() / 1000) + 86400,
+        wallet,
+        admin: context.admin,
+        poolAuthority: context.poolAuthority,
+        usdtMint: context.usdtMint,
+        mai3Mint: context.mai3Mint,
+        userUsdtAccount: context.userUsdtAccount,
+        userMai3Account: context.userMai3Account,
+        poolUsdtAccount: context.poolUsdtAccount,
+        poolMai3Account: context.poolMai3Account,
+      });
+
+      // Get task application PDA
+      const [taskApplication] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_application"),
+          taskInfo.toBuffer(),
+          context.applicant.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+      await program.methods
+        .applyTask()
+        .accounts({
+          taskInfo: taskInfo,
+          taskApplication: taskApplication,
+          applicant: context.applicant.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([context.applicant])
+        .rpc();
+
+      await program.methods
+        .approveApplication()
+        .accounts({
+          taskInfo,
+          taskApplication,
+          requester: wallet.publicKey,
+        })
+        .rpc();
+
+      // First submit acceptance to get into WaitingForAcceptance state
+      await program.methods
+        .submitAcceptance()
+        .accounts({
+          payer: context.applicant.publicKey,
+          taskApplication: taskApplication,
+        })
+        .signers([context.applicant])
+        .rpc();
+
+      // Now verify and accept the task application
+      await program.methods
+        .verifyTaskApplication(false)
+        .accounts({
+          taskApplication,
+          taskInfo,
+          user: wallet.publicKey,
+        })
+        .signers([wallet])
+        .rpc();
+
+      // Verify the application state
+      const applicationData = await program.account.taskApplication.fetch(
+        taskApplication
+      );
+      assert.deepEqual(applicationData.state, {
+        rejectedByAcceptance: {},
+      });
+    });
+
+    it("Should fail when non-requester tries to verify application", async () => {
+      const { program, wallet } = context;
+
+      // Get task info PDA
+      const taskId = 14;
+      const taskInfo = await createTask(program, {
+        taskId,
+        taskAmount: 1_000_000,
+        takerNum: 1,
+        coinType: 0,
+        rewards: 0,
+        expireTime: Math.floor(Date.now() / 1000) + 86400,
+        wallet,
+        admin: context.admin,
+        poolAuthority: context.poolAuthority,
+        usdtMint: context.usdtMint,
+        mai3Mint: context.mai3Mint,
+        userUsdtAccount: context.userUsdtAccount,
+        userMai3Account: context.userMai3Account,
+        poolUsdtAccount: context.poolUsdtAccount,
+        poolMai3Account: context.poolMai3Account,
+      });
+
+      // Get task application PDA
+      const [taskApplication] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_application"),
+          taskInfo.toBuffer(),
+          context.applicant.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+      await program.methods
+        .applyTask()
+        .accounts({
+          taskInfo: taskInfo,
+          taskApplication: taskApplication,
+          applicant: context.applicant.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([context.applicant])
+        .rpc();
+
+      await program.methods
+        .approveApplication()
+        .accounts({
+          taskInfo,
+          taskApplication,
+          requester: wallet.publicKey,
+        })
+        .rpc();
+
+      // First submit acceptance to get into WaitingForAcceptance state
+      await program.methods
+        .submitAcceptance()
+        .accounts({
+          payer: context.applicant.publicKey,
+          taskApplication: taskApplication,
+        })
+        .signers([context.applicant])
+        .rpc();
+
+      // Now verify and accept the task application
+      try {
+        await program.methods
+          .verifyTaskApplication(false)
+          .accounts({
+            taskApplication,
+            taskInfo,
+            user: context.applicant.publicKey,
+          })
+          .signers([context.applicant])
+          .rpc();
+        assert.fail(
+          "Should have failed when non-requester tries to verify application"
+        );
+      } catch (error) {
+        assert.include(error.message, "InvalidRequester");
+      }
+    });
+
+    it("Should fail when verifying application not in WaitingForAcceptance state", async () => {
+      const { program, wallet, applicant } = context;
+      const taskId = 13;
+
+      // Get task info PDA
+      const [taskInfo] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_info"),
+          new anchor.BN(taskId).toArrayLike(Buffer, "le", 8),
+        ],
+        program.programId
+      );
+
+      // Get task application PDA
+      const [taskApplication] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_application"),
+          taskInfo.toBuffer(),
+          applicant.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+      try {
+        // Try to verify application that's not in WaitingForAcceptance state
+        await program.methods
+          .verifyTaskApplication(true)
+          .accounts({
+            taskApplication,
+            taskInfo,
+            user: wallet.publicKey,
+          })
+          .signers([wallet])
+          .rpc();
+        assert.fail(
+          "Should have failed when verifying application not in WaitingForAcceptance state"
+        );
+      } catch (error) {
+        assert.include(error.message, "InvalidApplicationState");
       }
     });
   });

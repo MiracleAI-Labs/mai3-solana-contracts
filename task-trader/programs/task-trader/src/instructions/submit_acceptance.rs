@@ -15,8 +15,6 @@ pub struct SubmitAcceptance<'info> {
         constraint = (task_application.state == ApplicationState::Accepted || task_application.state == ApplicationState::RejectedByAcceptance) @ TaskTraderError::InvalidApplicationState,
     )]
     pub task_application: Account<'info, TaskApplication>,
-
-    pub system_program: Program<'info, System>,
 }
 
 pub fn submit_acceptance(ctx: Context<SubmitAcceptance>) -> Result<()> {
