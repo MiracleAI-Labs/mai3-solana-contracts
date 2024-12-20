@@ -11,6 +11,7 @@ import {
 } from "@solana/spl-token";
 import { assert } from "chai";
 import { getTestContext } from "./setup";
+import { TaskTrader } from "../target/types/task_trader";
 
 describe("Task Trader", () => {
   let context: Awaited<ReturnType<typeof getTestContext>>;
@@ -20,7 +21,7 @@ describe("Task Trader", () => {
   });
 
   async function createTask(
-    program: anchor.Program<any>,
+    program: anchor.Program<TaskTrader>,
     params: {
       taskId: number;
       taskAmount: number;
