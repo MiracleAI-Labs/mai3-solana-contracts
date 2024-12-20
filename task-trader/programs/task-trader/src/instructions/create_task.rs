@@ -112,6 +112,26 @@ pub fn create_task(
         TaskTraderError::InvalidExpireTime
     );
 
+    if coin_type == 0 {
+        token_utils::transfer_token(
+            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.user_usdt_account.to_account_info(),
+            ctx.accounts.pool_usdt_account.to_account_info(),
+            ctx.accounts.user.to_account_info(),
+            (task_amount + rewards) * taker_num,
+            None,
+        )?;
+    } else {
+        token_utils::transfer_token(
+            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.user_mai3_account.to_account_info(),
+            ctx.accounts.pool_mai3_account.to_account_info(),
+            ctx.accounts.user.to_account_info(),
+            (task_amount + rewards) * taker_num,
+            None,
+        )?;
+    }
+
     // Initialize task info
     let task_info = &mut ctx.accounts.task_info;
     task_info.task_id = task_id;

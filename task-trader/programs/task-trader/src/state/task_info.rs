@@ -2,8 +2,8 @@ use anchor_lang::prelude::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub enum TaskState {
-    Open = 0,  // 开启
-    Close = 1, // 关闭
+    Open = 0,
+    Close = 1,
 }
 
 #[account]
@@ -13,8 +13,8 @@ pub struct TaskInfo {
     pub taker_num: u64,
     pub approved_num: u64,
     pub amount_per_task: u64,
-    pub coin_type: u64, // usdt, mai
-    pub rewards: u64,   // mai
+    pub coin_type: u64, // 0 - usdt, 1 - mai
+    pub rewards: u64,
     pub expire_time: i64,
     pub state: TaskState,
     pub requester: Pubkey,

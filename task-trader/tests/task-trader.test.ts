@@ -19,6 +19,65 @@ describe("Task Trader", () => {
     context = await getTestContext();
   });
 
+  async function createTask(
+    program: anchor.Program<any>,
+    params: {
+      taskId: number;
+      taskAmount: number;
+      takerNum: number;
+      coinType: number; // 0 for USDT, 1 for MAI3
+      rewards: number;
+      expireTime: number;
+      wallet: Keypair;
+      admin: PublicKey;
+      poolAuthority: PublicKey;
+      usdtMint: PublicKey;
+      mai3Mint: PublicKey;
+      userUsdtAccount: PublicKey;
+      userMai3Account: PublicKey;
+      poolUsdtAccount: PublicKey;
+      poolMai3Account: PublicKey;
+    }
+  ) {
+    const [taskInfo] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("task_info"),
+        new anchor.BN(params.taskId).toArrayLike(Buffer, "le", 8),
+      ],
+      program.programId
+    );
+
+    await program.methods
+      .createTask(
+        new anchor.BN(params.taskId),
+        new anchor.BN(params.taskAmount),
+        new anchor.BN(params.takerNum),
+        new anchor.BN(params.coinType),
+        new anchor.BN(params.rewards),
+        new anchor.BN(params.expireTime)
+      )
+      .accounts({
+        user: params.wallet.publicKey,
+        admin: params.admin,
+        poolAuthority: params.poolAuthority,
+        taskInfo: taskInfo,
+        usdtMint: params.usdtMint,
+        mai3Mint: params.mai3Mint,
+        userUsdtAccount: params.userUsdtAccount,
+        userMai3Account: params.userMai3Account,
+        poolUsdtAccount: params.poolUsdtAccount,
+        poolMai3Account: params.poolMai3Account,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
+      })
+      .signers([params.wallet])
+      .rpc();
+
+    return taskInfo;
+  }
+
   describe("Admin", () => {
     it("Initialize admin account", async () => {
       const { program, admin, wallet, applicant } = context;
@@ -99,46 +158,33 @@ describe("Task Trader", () => {
       } = context;
 
       const taskId = 1;
-      const taskAmount = 100_000_000; // 100 USDT
+      const taskAmount = 10_000_000; // 10 USDT
       const takerNum = 10;
-      const rewards = 50_000_000; // 50 MAI3
+      const rewards = 5_000_000; // 5 USDT
       const expireTime = Math.floor(Date.now() / 1000) + 86400; // 24 hours from now
 
-      const [taskInfo] = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("task_info"),
-          new anchor.BN(taskId).toArrayLike(Buffer, "le", 8),
-        ],
-        program.programId
-      );
+      const initialUsdtBalance =
+        await program.provider.connection.getTokenAccountBalance(
+          userUsdtAccount
+        );
 
-      await program.methods
-        .createTask(
-          new anchor.BN(taskId),
-          new anchor.BN(taskAmount),
-          new anchor.BN(takerNum),
-          new anchor.BN(0), // 0 for USDT
-          new anchor.BN(rewards),
-          new anchor.BN(expireTime)
-        )
-        .accounts({
-          user: wallet.publicKey,
-          admin: admin,
-          poolAuthority: poolAuthority,
-          taskInfo: taskInfo,
-          usdtMint: usdtMint,
-          mai3Mint: mai3Mint,
-          userUsdtAccount: userUsdtAccount,
-          userMai3Account: userMai3Account,
-          poolUsdtAccount: poolUsdtAccount,
-          poolMai3Account: poolMai3Account,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-          rent: SYSVAR_RENT_PUBKEY,
-        })
-        .signers([wallet])
-        .rpc();
+      const taskInfo = await createTask(program, {
+        taskId,
+        taskAmount,
+        takerNum,
+        coinType: 0, // USDT
+        rewards,
+        expireTime,
+        wallet,
+        admin,
+        poolAuthority,
+        usdtMint,
+        mai3Mint,
+        userUsdtAccount,
+        userMai3Account,
+        poolUsdtAccount,
+        poolMai3Account,
+      });
 
       // Verify task info
       const taskInfoAccount = await program.account.taskInfo.fetch(taskInfo);
@@ -153,6 +199,30 @@ describe("Task Trader", () => {
       assert.equal(taskInfoAccount.rewards.toNumber(), rewards);
       assert.deepEqual(taskInfoAccount.state, { open: {} });
       assert.ok(taskInfoAccount.requester.equals(wallet.publicKey));
+
+      // Verify token transfer
+      const finalUsdtBalance =
+        await program.provider.connection.getTokenAccountBalance(
+          userUsdtAccount
+        );
+      const expectedTransferAmount = (taskAmount + rewards) * takerNum;
+      assert.equal(
+        finalUsdtBalance.value.amount,
+        (
+          parseInt(initialUsdtBalance.value.amount) - expectedTransferAmount
+        ).toString(),
+        "USDT not transferred correctly"
+      );
+
+      const poolUsdtBalance =
+        await program.provider.connection.getTokenAccountBalance(
+          poolUsdtAccount
+        );
+      assert.equal(
+        poolUsdtBalance.value.amount,
+        expectedTransferAmount.toString(),
+        "Pool USDT balance incorrect"
+      );
     });
 
     it("Create a task with MAI3", async () => {
@@ -170,46 +240,33 @@ describe("Task Trader", () => {
       } = context;
 
       const taskId = 2;
-      const taskAmount = 200_000_000; // 200 MAI3
+      const taskAmount = 20_000_000; // 20 MAI3
       const takerNum = 5;
-      const rewards = 100_000_000; // 100 USDT
+      const rewards = 1_000_000; // 1 MAI3
       const expireTime = Math.floor(Date.now() / 1000) + 86400; // 24 hours from now
 
-      const [taskInfo] = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("task_info"),
-          new anchor.BN(taskId).toArrayLike(Buffer, "le", 8),
-        ],
-        program.programId
-      );
+      const initialMai3Balance =
+        await program.provider.connection.getTokenAccountBalance(
+          userMai3Account
+        );
 
-      await program.methods
-        .createTask(
-          new anchor.BN(taskId),
-          new anchor.BN(taskAmount),
-          new anchor.BN(takerNum),
-          new anchor.BN(1), // 1 for MAI3
-          new anchor.BN(rewards),
-          new anchor.BN(expireTime)
-        )
-        .accounts({
-          user: wallet.publicKey,
-          admin: admin,
-          poolAuthority: poolAuthority,
-          taskInfo: taskInfo,
-          usdtMint: usdtMint,
-          mai3Mint: mai3Mint,
-          userUsdtAccount: userUsdtAccount,
-          userMai3Account: userMai3Account,
-          poolUsdtAccount: poolUsdtAccount,
-          poolMai3Account: poolMai3Account,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-          rent: SYSVAR_RENT_PUBKEY,
-        })
-        .signers([wallet])
-        .rpc();
+      const taskInfo = await createTask(program, {
+        taskId,
+        taskAmount,
+        takerNum,
+        coinType: 1, // MAI3
+        rewards,
+        expireTime,
+        wallet,
+        admin,
+        poolAuthority,
+        usdtMint,
+        mai3Mint,
+        userUsdtAccount,
+        userMai3Account,
+        poolUsdtAccount,
+        poolMai3Account,
+      });
 
       // Verify task info
       const taskInfoAccount = await program.account.taskInfo.fetch(taskInfo);
@@ -224,6 +281,30 @@ describe("Task Trader", () => {
       assert.equal(taskInfoAccount.rewards.toNumber(), rewards);
       assert.deepEqual(taskInfoAccount.state, { open: {} });
       assert.ok(taskInfoAccount.requester.equals(wallet.publicKey));
+
+      // Verify token transfer
+      const finalMai3Balance =
+        await program.provider.connection.getTokenAccountBalance(
+          userMai3Account
+        );
+      const expectedMai3TransferAmount = (taskAmount + rewards) * takerNum;
+      assert.equal(
+        finalMai3Balance.value.amount,
+        (
+          parseInt(initialMai3Balance.value.amount) - expectedMai3TransferAmount
+        ).toString(),
+        "MAI3 not transferred correctly"
+      );
+
+      const poolMai3Balance =
+        await program.provider.connection.getTokenAccountBalance(
+          poolMai3Account
+        );
+      assert.equal(
+        poolMai3Balance.value.amount,
+        expectedMai3TransferAmount.toString(),
+        "Pool MAI3 balance incorrect"
+      );
     });
   });
 
@@ -327,42 +408,23 @@ describe("Task Trader", () => {
       const rewards = 50_000_000;
       const expireTime = Math.floor(Date.now() / 1000) + 86400;
 
-      const [taskInfo] = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("task_info"),
-          new anchor.BN(taskId).toArrayLike(Buffer, "le", 8),
-        ],
-        program.programId
-      );
-
-      // Create the task
-      await program.methods
-        .createTask(
-          new anchor.BN(taskId),
-          new anchor.BN(taskAmount),
-          new anchor.BN(takerNum),
-          new anchor.BN(0),
-          new anchor.BN(rewards),
-          new anchor.BN(expireTime)
-        )
-        .accounts({
-          user: wallet.publicKey,
-          admin: admin,
-          poolAuthority: poolAuthority,
-          taskInfo: taskInfo,
-          usdtMint: usdtMint,
-          mai3Mint: mai3Mint,
-          userUsdtAccount: userUsdtAccount,
-          userMai3Account: userMai3Account,
-          poolUsdtAccount: poolUsdtAccount,
-          poolMai3Account: poolMai3Account,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-          rent: SYSVAR_RENT_PUBKEY,
-        })
-        .signers([wallet])
-        .rpc();
+      const taskInfo = await createTask(program, {
+        taskId,
+        taskAmount,
+        takerNum,
+        coinType: 0,
+        rewards,
+        expireTime,
+        wallet,
+        admin,
+        poolAuthority,
+        usdtMint,
+        mai3Mint,
+        userUsdtAccount,
+        userMai3Account,
+        poolUsdtAccount,
+        poolMai3Account,
+      });
 
       const [taskApplication] = PublicKey.findProgramAddressSync(
         [
@@ -455,46 +517,28 @@ describe("Task Trader", () => {
 
       // Create a new task with small taker number
       const taskId = 3;
-      const taskAmount = 100_000_000;
+      const taskAmount = 1_000_000;
       const takerNum = 1;
-      const rewards = 50_000_000;
+      const rewards = 0;
       const expireTime = Math.floor(Date.now() / 1000) + 86400;
 
-      const [taskInfo] = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("task_info"),
-          new anchor.BN(taskId).toArrayLike(Buffer, "le", 8),
-        ],
-        program.programId
-      );
-
-      await program.methods
-        .createTask(
-          new anchor.BN(taskId),
-          new anchor.BN(taskAmount),
-          new anchor.BN(takerNum),
-          new anchor.BN(0),
-          new anchor.BN(rewards),
-          new anchor.BN(expireTime)
-        )
-        .accounts({
-          user: wallet.publicKey,
-          admin: admin,
-          poolAuthority: poolAuthority,
-          taskInfo: taskInfo,
-          usdtMint: usdtMint,
-          mai3Mint: mai3Mint,
-          userUsdtAccount: userUsdtAccount,
-          userMai3Account: userMai3Account,
-          poolUsdtAccount: poolUsdtAccount,
-          poolMai3Account: poolMai3Account,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-          rent: SYSVAR_RENT_PUBKEY,
-        })
-        .signers([wallet])
-        .rpc();
+      const taskInfo = await createTask(program, {
+        taskId,
+        taskAmount,
+        takerNum,
+        coinType: 0,
+        rewards,
+        expireTime,
+        wallet,
+        admin,
+        poolAuthority,
+        usdtMint,
+        mai3Mint,
+        userUsdtAccount,
+        userMai3Account,
+        poolUsdtAccount,
+        poolMai3Account,
+      });
 
       // Create and approve first application
       const [firstApplication] = PublicKey.findProgramAddressSync(
@@ -576,6 +620,150 @@ describe("Task Trader", () => {
         assert.fail("Should have failed with TakerNumExceeded");
       } catch (error) {
         assert.include(error.message, "TakerNumExceeded");
+      }
+    });
+  });
+
+  describe("Submit Acceptance", () => {
+    it("Submit acceptance successfully", async () => {
+      const {
+        program,
+        wallet,
+        usdtMint,
+        userUsdtAccount,
+        poolUsdtAccount,
+        mai3Mint,
+        userMai3Account,
+        poolMai3Account,
+      } = context;
+
+      // First create a task
+      const taskId = 10;
+      const taskAmount = 10_000_000; // 10 USDT
+      const takerNum = 1;
+      const rewards = 5_000_000; // 5 USDT
+      const expireTime = Math.floor(Date.now() / 1000) + 86400;
+
+      const taskInfo = await createTask(program, {
+        taskId,
+        taskAmount,
+        takerNum,
+        coinType: 0, // USDT
+        rewards,
+        expireTime,
+        wallet,
+        admin: context.admin,
+        poolAuthority: context.poolAuthority,
+        usdtMint,
+        mai3Mint,
+        userUsdtAccount,
+        userMai3Account,
+        poolUsdtAccount,
+        poolMai3Account,
+      });
+
+      // Then apply for the task
+      const [taskApplication] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_application"),
+          taskInfo.toBuffer(),
+          wallet.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+      await program.methods
+        .applyTask()
+        .accounts({
+          taskInfo: taskInfo,
+          taskApplication: taskApplication,
+          applicant: wallet.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      // Approve the application
+      await program.methods
+        .approveApplication()
+        .accounts({
+          taskInfo: taskInfo,
+          taskApplication: taskApplication,
+          requester: wallet.publicKey,
+        })
+        .rpc();
+
+      // Submit for acceptance
+      await program.methods
+        .submitAcceptance()
+        .accounts({
+          applicant: wallet.publicKey,
+          taskApplication: taskApplication,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      // Verify the application state
+      const applicationAccount = await program.account.taskApplication.fetch(
+        taskApplication
+      );
+      assert.deepEqual(applicationAccount.state, { waitingForAcceptance: {} });
+    });
+
+    it("Cannot submit acceptance if not accepted", async () => {
+      const { program, wallet } = context;
+
+      // Create task and apply
+      const taskId = 11;
+      const taskInfo = await createTask(program, {
+        taskId,
+        taskAmount: 1_000_000,
+        takerNum: 1,
+        coinType: 0,
+        rewards: 0,
+        expireTime: Math.floor(Date.now() / 1000) + 86400,
+        wallet,
+        admin: context.admin,
+        poolAuthority: context.poolAuthority,
+        usdtMint: context.usdtMint,
+        mai3Mint: context.mai3Mint,
+        userUsdtAccount: context.userUsdtAccount,
+        userMai3Account: context.userMai3Account,
+        poolUsdtAccount: context.poolUsdtAccount,
+        poolMai3Account: context.poolMai3Account,
+      });
+
+      const [taskApplication] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_application"),
+          taskInfo.toBuffer(),
+          wallet.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+      await program.methods
+        .applyTask()
+        .accounts({
+          taskInfo: taskInfo,
+          taskApplication: taskApplication,
+          applicant: wallet.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      // Try to submit acceptance without being accepted first
+      try {
+        await program.methods
+          .submitAcceptance()
+          .accounts({
+            applicant: wallet.publicKey,
+            taskApplication: taskApplication,
+            systemProgram: SystemProgram.programId,
+          })
+          .rpc();
+        assert.fail("Should have failed");
+      } catch (err) {
+        assert.include(err.message, "InvalidApplicationState");
       }
     });
   });

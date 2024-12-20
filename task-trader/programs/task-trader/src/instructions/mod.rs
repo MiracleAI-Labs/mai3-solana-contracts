@@ -18,3 +18,6 @@ pub use update_admin::*;
 
 pub mod reject_application;
 pub use reject_application::*;
+
+pub mod submit_acceptance;
+pub use submit_acceptance::*;

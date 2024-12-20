@@ -2,13 +2,12 @@ use anchor_lang::prelude::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub enum ApplicationState {
-    Applied = 0,              // 已申请
-    Accepted = 1,             // 已接受
-    Rejected = 2,             // 已拒绝
-    Paid = 3,                 // 已付款
-    WaitingForAcceptance = 4, // 等待验收
-    RejectedByAcceptance = 5, // 验收不通过
-    AcceptedByAcceptance = 6, // 验收通过
+    Applied = 0,              // Applied
+    Accepted = 1,             // Accepted and Paid
+    Rejected = 2,             // Rejected
+    WaitingForAcceptance = 3, // Waiting for Verification
+    RejectedByAcceptance = 4, // Verification Failed
+    AcceptedByAcceptance = 5, // Verification Passed
 }
 
 #[account]

@@ -69,6 +69,11 @@ pub mod task_trader {
         instructions::reject_application::reject_application(ctx)
     }
 
+    pub fn submit_acceptance(ctx: Context<SubmitAcceptance>) -> Result<()> {
+        msg!("Submitting Acceptance...");
+        instructions::submit_acceptance::submit_acceptance(ctx)
+    }
+
     pub fn open_task(ctx: Context<SetupTaskState>) -> Result<()> {
         msg!("Open Task ...");
         instructions::setup_task_state::open_task(ctx)
