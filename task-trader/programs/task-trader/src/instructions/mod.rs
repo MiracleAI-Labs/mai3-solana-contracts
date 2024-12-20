@@ -12,3 +12,6 @@ pub use approve_application::*;
 
 pub mod setup_task_state;
 pub use setup_task_state::*;
+
+pub mod update_admin;
+pub use update_admin::*;

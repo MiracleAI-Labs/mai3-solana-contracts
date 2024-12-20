@@ -55,4 +55,7 @@ pub enum TaskTraderError {
 
     #[msg("Taker Num Exceeded")]
     TakerNumExceeded,
+
+    #[msg("Unauthorized")]
+    Unauthorized,
 }

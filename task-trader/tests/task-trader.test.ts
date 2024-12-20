@@ -1,5 +1,10 @@
 import * as anchor from "@coral-xyz/anchor";
-import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
+import {
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  SYSVAR_RENT_PUBKEY,
+} from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -16,11 +21,41 @@ describe("Task Trader", () => {
 
   describe("Admin", () => {
     it("Initialize admin account", async () => {
-      const { program, admin, wallet } = context;
+      const { program, admin, wallet, applicant } = context;
 
       const adminAccount = await program.account.admin.fetch(admin);
       assert.ok(adminAccount.signer.equals(wallet.publicKey));
       assert.ok(adminAccount.feeReceiver.equals(wallet.publicKey));
+
+      const updateAdmin = async function (
+        publicKey: PublicKey,
+        signer: Keypair
+      ) {
+        return program.methods
+          .updateAdmin(publicKey, publicKey)
+          .accounts({
+            payer: signer.publicKey,
+            admin: admin,
+            system_program: SystemProgram.programId,
+            rent: SYSVAR_RENT_PUBKEY,
+          })
+          .signers([signer])
+          .rpc();
+      };
+      try {
+        await updateAdmin(applicant.publicKey, applicant);
+        assert.fail("Should have failed when update admin for non-admin");
+      } catch (error) {
+        assert.include(error.message, "Unauthorized");
+      }
+
+      await updateAdmin(applicant.publicKey, wallet);
+
+      const adminAccount2 = await program.account.admin.fetch(admin);
+      assert.ok(adminAccount2.signer.equals(applicant.publicKey));
+      assert.ok(adminAccount2.feeReceiver.equals(applicant.publicKey));
+
+      await updateAdmin(wallet.publicKey, applicant);
     });
 
     it("Verify initial token balances", async () => {

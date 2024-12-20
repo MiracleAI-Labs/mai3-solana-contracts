@@ -22,6 +22,16 @@ pub mod task_trader {
         instructions::initialize::initialize(ctx, signer, fee_receiver)
     }
 
+    pub fn update_admin(
+        ctx: Context<UpdateAdmin>,
+        signer: Pubkey,
+        fee_receiver: Pubkey,
+    ) -> Result<()> {
+        msg!("Updating admin...");
+
+        instructions::update_admin::update_admin(ctx, signer, fee_receiver)
+    }
+
     pub fn create_task(
         ctx: Context<CreateTask>,
         task_id: u64,
@@ -63,5 +73,4 @@ pub mod task_trader {
         msg!("Close Task ...");
         instructions::setup_task_state::close_task(ctx)
     }
-    
 }
