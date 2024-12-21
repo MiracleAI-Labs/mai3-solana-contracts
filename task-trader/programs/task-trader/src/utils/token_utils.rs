@@ -9,6 +9,31 @@ pub fn transfer_token<'info>(
     to_account: AccountInfo<'info>,
     authority: AccountInfo<'info>,
     task_amount: u64,
+) -> Result<()> {
+    let cpi_ctx = CpiContext::new(
+        token_program,
+        Transfer {
+            from: from_account,
+            to: to_account,
+            authority: authority,
+        },
+    );
+
+    msg!("Transferring tokens...");
+    msg!("Amount: {}", task_amount);
+
+    token::transfer(cpi_ctx, task_amount)?;
+    msg!("Transfer completed");
+
+    Ok(())
+}
+
+pub fn transfer_token_with_singer<'info>(
+    token_program: AccountInfo<'info>,
+    from_account: AccountInfo<'info>,
+    to_account: AccountInfo<'info>,
+    authority: AccountInfo<'info>,
+    task_amount: u64,
     signer_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()> {
     let seeds = signer_seeds.unwrap_or(&[&[]]);

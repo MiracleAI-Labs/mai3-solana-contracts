@@ -69,7 +69,7 @@ pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
     let task_info = &ctx.accounts.task_info;
     let seeds = &[b"pool_authority".as_ref(), &[ctx.bumps.pool_authority]];
 
-    token_utils::transfer_token(
+    token_utils::transfer_token_with_singer(
         ctx.accounts.token_program.to_account_info(),
         ctx.accounts.pool_coin_account.to_account_info(),
         ctx.accounts.user_coin_account.to_account_info(),

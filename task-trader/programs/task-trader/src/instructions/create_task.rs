@@ -104,7 +104,6 @@ pub fn create_task(
         ctx.accounts.pool_coin_account.to_account_info(),
         ctx.accounts.user.to_account_info(),
         (task_amount + rewards) * taker_num,
-        None,
     )?;
 
     // Initialize task info
