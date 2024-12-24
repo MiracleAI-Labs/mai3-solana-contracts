@@ -7,6 +7,9 @@ skip-lint = false
 [programs.localnet]
 task_trader = "DSyKrLRc83jxeEUiUJdsyePRcreQ2dkXj3vdpggH8wd1"
 
+[programs.devnet]
+task_trader = "ALiVWfgZKjM4YkYN9fVGTjrqt4uaYasfNZ8rtvBNs86V"
+
 [registry]
 url = "https://api.apr.dev"
 

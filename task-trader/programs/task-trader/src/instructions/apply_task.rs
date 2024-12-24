@@ -30,13 +30,18 @@ pub struct ApplyTask<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn apply_task(ctx: Context<ApplyTask>) -> Result<()> {
+pub fn apply_task(ctx: Context<ApplyTask>, inviter: Option<Pubkey>) -> Result<()> {
     let task_info = &ctx.accounts.task_info;
     let task_application = &mut ctx.accounts.task_application;
     let applicant_key = ctx.accounts.applicant.key();
 
     task_application.task_id = task_info.task_id;
     task_application.applicant = applicant_key;
+    if let Some(inviter) = inviter {
+        if inviter != applicant_key {
+            task_application.inviter = inviter;
+        }
+    }
     task_application.apply_time = Clock::get()?.unix_timestamp;
 
     Ok(())

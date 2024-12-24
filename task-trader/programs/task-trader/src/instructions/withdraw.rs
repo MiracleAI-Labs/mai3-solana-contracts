@@ -52,6 +52,18 @@ pub struct Withdraw<'info> {
     )]
     pub user_coin_account: Box<Account<'info, TokenAccount>>,
 
+    /// CHECK: This is not dangerous
+    #[account(mut)]
+    pub inviter: Option<AccountInfo<'info>>,
+
+    #[account(
+        init_if_needed,
+        payer = user,
+        associated_token::mint = coin_mint,
+        associated_token::authority = inviter,
+    )]
+    pub inviter_coin_account: Option<Box<Account<'info, TokenAccount>>>,
+
     #[account(
         mut,
         constraint = pool_coin_account.owner == pool_authority.key() @ TaskTraderError::InvalidPoolAccount,
@@ -67,6 +79,7 @@ pub struct Withdraw<'info> {
 
 pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
     let task_info = &ctx.accounts.task_info;
+    let task_application = &ctx.accounts.task_application;
     let seeds = &[b"pool_authority".as_ref(), &[ctx.bumps.pool_authority]];
 
     token_utils::transfer_token_with_singer(
@@ -77,6 +90,28 @@ pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
         task_info.task_amount,
         Some(&[seeds]),
     )?;
+
+    if task_application.inviter != Pubkey::default() {
+        if let Some(inviter_account) = &ctx.accounts.inviter_coin_account {
+            if task_info.rewards > 0 {
+                if let Some(inviter) = &ctx.accounts.inviter {
+                    if inviter.key() != inviter_account.owner
+                        || inviter.key() != task_application.inviter
+                    {
+                        return Err(TaskTraderError::InvalidInviter.into());
+                    }
+                }
+                token_utils::transfer_token_with_singer(
+                    ctx.accounts.token_program.to_account_info(),
+                    ctx.accounts.pool_coin_account.to_account_info(),
+                    inviter_account.to_account_info(),
+                    ctx.accounts.pool_authority.to_account_info(),
+                    task_info.rewards,
+                    Some(&[seeds]),
+                )?;
+            }
+        }
+    }
 
     let task_application = &mut ctx.accounts.task_application;
     task_application.state = ApplicationState::Withdrawed;

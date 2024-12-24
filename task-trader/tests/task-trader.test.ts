@@ -386,7 +386,7 @@ describe("Task Trader", () => {
       );
 
       await program.methods
-        .applyTask()
+        .applyTask(null)
         .accounts({
           taskInfo: taskInfo,
           taskApplication: taskApplication,
@@ -488,7 +488,7 @@ describe("Task Trader", () => {
 
       // Apply for the task
       await program.methods
-        .applyTask()
+        .applyTask(null)
         .accounts({
           taskInfo: taskInfo,
           taskApplication: taskApplication,
@@ -596,7 +596,7 @@ describe("Task Trader", () => {
       );
 
       await program.methods
-        .applyTask()
+        .applyTask(null)
         .accounts({
           taskInfo: taskInfo,
           taskApplication: firstApplication,
@@ -642,7 +642,7 @@ describe("Task Trader", () => {
 
       // Apply with second applicant
       await program.methods
-        .applyTask()
+        .applyTask(null)
         .accounts({
           taskInfo: taskInfo,
           taskApplication: secondApplication,
@@ -714,7 +714,7 @@ describe("Task Trader", () => {
       );
 
       await program.methods
-        .applyTask()
+        .applyTask(null)
         .accounts({
           taskInfo: taskInfo,
           taskApplication: taskApplication,
@@ -778,7 +778,7 @@ describe("Task Trader", () => {
       );
 
       await program.methods
-        .applyTask()
+        .applyTask(null)
         .accounts({
           taskInfo: taskInfo,
           taskApplication: taskApplication,
@@ -900,7 +900,7 @@ describe("Task Trader", () => {
 
       try {
         await program.methods
-          .applyTask()
+          .applyTask(null)
           .accounts({
             taskInfo: taskInfo,
             taskApplication: taskApplication,
@@ -947,7 +947,7 @@ describe("Task Trader", () => {
       );
 
       await program.methods
-        .applyTask()
+        .applyTask(null)
         .accounts({
           taskInfo: taskInfo,
           taskApplication: taskApplication,
@@ -1026,7 +1026,7 @@ describe("Task Trader", () => {
       );
 
       await program.methods
-        .applyTask()
+        .applyTask(null)
         .accounts({
           taskInfo: taskInfo,
           taskApplication: taskApplication,
@@ -1105,7 +1105,7 @@ describe("Task Trader", () => {
       );
 
       await program.methods
-        .applyTask()
+        .applyTask(null)
         .accounts({
           taskInfo: taskInfo,
           taskApplication: taskApplication,
@@ -1240,7 +1240,7 @@ describe("Task Trader", () => {
 
       // Apply for task
       await program.methods
-        .applyTask()
+        .applyTask(null)
         .accounts({
           taskInfo,
           taskApplication,
@@ -1316,6 +1316,8 @@ describe("Task Trader", () => {
           poolAuthority: poolAuthority,
           coinMint: usdtMint,
           userCoinAccount: applicantUsdtAccount,
+          inviter: null,
+          inviterCoinAccount: null,
           poolCoinAccount: poolUsdtAccount,
           tokenProgram: TOKEN_PROGRAM_ID,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -1343,6 +1345,168 @@ describe("Task Trader", () => {
           parseInt(beforeBalance.value.amount),
         1000
       );
+    });
+
+    it("Should withdraw USDT with inviter successfully", async () => {
+      const {
+        program,
+        applicant,
+        wallet,
+        usdtMint,
+        admin,
+        userUsdtAccount,
+        poolAuthority,
+        poolUsdtAccount,
+      } = context;
+
+      // Create a new keypair for inviter
+      const inviter = anchor.web3.Keypair.generate();
+      await context.provider.connection.requestAirdrop(
+        inviter.publicKey,
+        10 * anchor.web3.LAMPORTS_PER_SOL
+      );
+
+      // Create task info PDA
+      const taskId = 30;
+      // Create task first
+      const [taskInfo] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_info"),
+          new anchor.BN(taskId).toArrayLike(Buffer, "le", 8),
+        ],
+        program.programId
+      );
+
+      // Create task application PDA
+      const [taskApplication] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("task_application"),
+          taskInfo.toBuffer(),
+          applicant.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+      const applicantUsdtAccount = await getAssociatedTokenAddressSync(
+        usdtMint,
+        applicant.publicKey,
+        true,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+
+      const inviterUsdtAccount = await getAssociatedTokenAddressSync(
+        usdtMint,
+        inviter.publicKey,
+        true,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+
+      // Create task with rewards for inviter
+      await createTask(program, {
+        taskId: taskId,
+        taskAmount: 100,
+        takerNum: 1,
+        coinMint: usdtMint,
+        rewards: 10, // Set rewards for inviter
+        expireTime: Math.floor(Date.now() / 1000) + 3600,
+        wallet: wallet,
+        admin: admin,
+        poolAuthority: poolAuthority,
+        userCoinAccount: userUsdtAccount,
+        poolCoinAccount: poolUsdtAccount,
+      });
+
+      // Apply for task
+      await program.methods
+        .applyTask(inviter.publicKey)
+        .accounts({
+          taskInfo,
+          taskApplication,
+          applicant: applicant.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([applicant])
+        .rpc();
+
+      // Accept application
+      await program.methods
+        .approveApplication()
+        .accounts({
+          taskInfo,
+          taskApplication,
+          requester: wallet.publicKey,
+        })
+        .signers([wallet])
+        .rpc();
+
+      // Submit acceptance
+      await program.methods
+        .submitAcceptance()
+        .accounts({
+          payer: applicant.publicKey,
+          taskApplication,
+        })
+        .signers([applicant])
+        .rpc();
+
+      await program.methods
+        .verifyTaskApplication(true)
+        .accounts({
+          taskApplication,
+          taskInfo,
+          user: wallet.publicKey,
+        })
+        .signers([wallet])
+        .rpc();
+
+      // Get balances before withdraw
+      const beforeApplicantBalance =
+        await context.provider.connection.getTokenAccountBalance(
+          applicantUsdtAccount
+        );
+
+      // Withdraw
+      await program.methods
+        .withdraw()
+        .accounts({
+          user: applicant.publicKey,
+          taskApplication: taskApplication,
+          taskInfo: taskInfo,
+          poolAuthority: poolAuthority,
+          coinMint: usdtMint,
+          userCoinAccount: applicantUsdtAccount,
+          inviter: inviter.publicKey,
+          inviterCoinAccount: inviterUsdtAccount,
+          poolCoinAccount: poolUsdtAccount,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        })
+        .signers([applicant])
+        .rpc();
+
+      // Check balances after withdraw
+      const afterApplicantBalance =
+        await context.provider.connection.getTokenAccountBalance(
+          applicantUsdtAccount
+        );
+      const afterInviterBalance =
+        await context.provider.connection.getTokenAccountBalance(
+          inviterUsdtAccount
+        );
+
+      // Verify applicant received task amount
+      assert.equal(
+        parseInt(afterApplicantBalance.value.amount) -
+          parseInt(beforeApplicantBalance.value.amount),
+        100
+      );
+
+      // Verify inviter received rewards
+      assert.equal(parseInt(afterInviterBalance.value.amount), 10);
     });
 
     it("Should fail when application state is not AcceptedByAcceptance", async () => {
@@ -1388,7 +1552,7 @@ describe("Task Trader", () => {
 
       // Apply for task
       await program.methods
-        .applyTask()
+        .applyTask(null)
         .accounts({
           taskInfo,
           taskApplication,
@@ -1445,6 +1609,8 @@ describe("Task Trader", () => {
             poolAuthority: poolAuthority,
             coinMint: usdtMint,
             userCoinAccount: applicantUsdtAccount,
+            inviter: null,
+            inviterCoinAccount: null,
             poolCoinAccount: poolUsdtAccount,
             tokenProgram: TOKEN_PROGRAM_ID,
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -1517,6 +1683,8 @@ describe("Task Trader", () => {
             poolAuthority: poolAuthority,
             coinMint: usdtMint,
             userCoinAccount: userUsdtAccount,
+            inviter: null,
+            inviterCoinAccount: null,
             poolCoinAccount: poolUsdtAccount,
             tokenProgram: TOKEN_PROGRAM_ID,
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,

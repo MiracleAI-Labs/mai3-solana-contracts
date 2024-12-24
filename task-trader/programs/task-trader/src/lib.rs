@@ -54,9 +54,9 @@ pub mod task_trader {
         )
     }
 
-    pub fn apply_task(ctx: Context<ApplyTask>) -> Result<()> {
+    pub fn apply_task(ctx: Context<ApplyTask>, inviter: Option<Pubkey>) -> Result<()> {
         msg!("Applying Task Trader...");
-        instructions::apply_task::apply_task(ctx)
+        instructions::apply_task::apply_task(ctx, inviter)
     }
 
     pub fn approve_application(ctx: Context<ApproveApplication>) -> Result<()> {

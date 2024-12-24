@@ -67,4 +67,7 @@ pub enum TaskTraderError {
 
     #[msg("Invalid Mint")]
     InvalidMint,
+
+    #[msg("Invalid Inviter")]
+    InvalidInviter,
 }

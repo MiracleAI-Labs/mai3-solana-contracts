@@ -15,10 +15,11 @@ pub enum ApplicationState {
 pub struct TaskApplication {
     pub task_id: u64,
     pub applicant: Pubkey,
+    pub inviter: Pubkey,
     pub apply_time: i64,
     pub state: ApplicationState,
 }
 
 impl TaskApplication {
-    pub const INIT_SPACE: usize = 8 + 8 + 32 + 8 + 1;
+    pub const INIT_SPACE: usize = 8 + 8 + 32 + 32 + 8 + 1;
 }
