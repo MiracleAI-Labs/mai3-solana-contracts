@@ -8,13 +8,13 @@ skip-lint = false
 task_trader = "DSyKrLRc83jxeEUiUJdsyePRcreQ2dkXj3vdpggH8wd1"
 
 [programs.devnet]
-task_trader = "ALiVWfgZKjM4YkYN9fVGTjrqt4uaYasfNZ8rtvBNs86V"
+task_trader = "EuAJYHz5U4EJE9bSf8Um6K1X6UFyTa1SmbRyweg7hjDH"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

@@ -6,7 +6,7 @@ mod utils;
 use anchor_lang::prelude::*;
 use instructions::*;
 
-declare_id!("DSyKrLRc83jxeEUiUJdsyePRcreQ2dkXj3vdpggH8wd1");
+declare_id!("EuAJYHz5U4EJE9bSf8Um6K1X6UFyTa1SmbRyweg7hjDH");
 
 #[program]
 pub mod task_trader {
