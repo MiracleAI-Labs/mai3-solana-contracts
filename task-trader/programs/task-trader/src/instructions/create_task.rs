@@ -69,6 +69,20 @@ pub struct CreateTask<'info> {
     )]
     pub support_coin: Account<'info, SupportCoin>,
 
+    /// CHECK: This is not dangerous
+    #[account(
+        constraint = fee_receiver.key() == admin.fee_receiver @ TaskTraderError::Unauthorized
+    )]
+    pub fee_receiver: AccountInfo<'info>,
+
+    #[account(
+        init_if_needed,
+        payer = user,
+        associated_token::mint = coin_mint,
+        associated_token::authority = fee_receiver,
+    )]
+    pub fee_receiver_coin_account: Box<Account<'info, TokenAccount>>,
+
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,

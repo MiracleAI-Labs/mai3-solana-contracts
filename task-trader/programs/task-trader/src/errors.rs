@@ -70,4 +70,10 @@ pub enum TaskTraderError {
 
     #[msg("Invalid Inviter")]
     InvalidInviter,
+
+    #[msg("Invalid Inviter Coin Account")]
+    InvalidFeeReceiverAccount,
+
+    #[msg("Numerical Overflow")]
+    NumericalOverflow,
 }

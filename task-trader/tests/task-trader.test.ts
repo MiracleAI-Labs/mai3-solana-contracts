@@ -73,6 +73,7 @@ describe("Task Trader", () => {
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
+        feeReceiver: params.wallet.publicKey,
       })
       .signers([params.wallet])
       .rpc();
@@ -90,10 +91,11 @@ describe("Task Trader", () => {
 
       const updateAdmin = async function (
         publicKey: PublicKey,
-        signer: Keypair
+        signer: Keypair,
+        fee_ratio: number
       ) {
         return program.methods
-          .updateAdmin(publicKey, publicKey)
+          .updateAdmin(publicKey, publicKey, new anchor.BN(fee_ratio))
           .accounts({
             payer: signer.publicKey,
             admin: admin,
@@ -102,19 +104,19 @@ describe("Task Trader", () => {
           .rpc();
       };
       try {
-        await updateAdmin(applicant.publicKey, applicant);
+        await updateAdmin(applicant.publicKey, applicant, 1);
         assert.fail("Should have failed when update admin for non-admin");
       } catch (error) {
         assert.include(error.message, "Unauthorized");
       }
 
-      await updateAdmin(applicant.publicKey, wallet);
+      await updateAdmin(applicant.publicKey, wallet, 1);
 
       const adminAccount2 = await program.account.admin.fetch(admin);
       assert.ok(adminAccount2.signer.equals(applicant.publicKey));
       assert.ok(adminAccount2.feeReceiver.equals(applicant.publicKey));
 
-      await updateAdmin(wallet.publicKey, applicant);
+      await updateAdmin(wallet.publicKey, applicant, 1);
     });
 
     it("Verify initial token balances", async () => {
@@ -1323,6 +1325,9 @@ describe("Task Trader", () => {
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
           rent: SYSVAR_RENT_PUBKEY,
+          admin: admin,
+          feeReceiver: wallet.publicKey,
+          feeReceiverCoinAccount: userUsdtAccount,
         })
         .signers([applicant])
         .rpc();
@@ -1335,13 +1340,16 @@ describe("Task Trader", () => {
         withdrawed: {},
       });
 
+      const adminAccount = await program.account.admin.fetch(admin);
+
       // Verify token transfer
       const afterBalance =
         await context.provider.connection.getTokenAccountBalance(
           applicantUsdtAccount
         );
       assert.equal(
-        parseInt(afterBalance.value.amount) -
+        parseInt(afterBalance.value.amount) +
+          (1000 * parseInt(adminAccount.feeRatio.toString())) / 1000 -
           parseInt(beforeBalance.value.amount),
         1000
       );
@@ -1484,9 +1492,14 @@ describe("Task Trader", () => {
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
           rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          admin: admin,
+          feeReceiver: wallet.publicKey,
+          feeReceiverCoinAccount: userUsdtAccount,
         })
         .signers([applicant])
         .rpc();
+
+      const adminAccount = await program.account.admin.fetch(admin);
 
       // Check balances after withdraw
       const afterApplicantBalance =
@@ -1500,7 +1513,10 @@ describe("Task Trader", () => {
 
       // Verify applicant received task amount
       assert.equal(
-        parseInt(afterApplicantBalance.value.amount) -
+        parseInt(afterApplicantBalance.value.amount) +
+          parseInt(
+            `${(100 * parseInt(adminAccount.feeRatio.toString())) / 1000}`
+          ) -
           parseInt(beforeApplicantBalance.value.amount),
         100
       );
@@ -1616,6 +1632,9 @@ describe("Task Trader", () => {
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
             rent: SYSVAR_RENT_PUBKEY,
+            admin: admin,
+            feeReceiver: wallet.publicKey,
+            feeReceiverCoinAccount: userUsdtAccount,
           })
           .signers([applicant])
           .rpc();
@@ -1690,6 +1709,9 @@ describe("Task Trader", () => {
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
             rent: SYSVAR_RENT_PUBKEY,
+            admin: admin,
+            feeReceiver: wallet.publicKey,
+            feeReceiverCoinAccount: userUsdtAccount,
           })
           .rpc();
         assert.fail(

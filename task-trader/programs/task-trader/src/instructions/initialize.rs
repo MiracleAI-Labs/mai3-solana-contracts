@@ -17,11 +17,12 @@ pub struct Initialize<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn initialize(ctx: Context<Initialize>, signer: Pubkey, fee_receiver: Pubkey) -> Result<()> {
+pub fn initialize(ctx: Context<Initialize>, signer: Pubkey, fee_receiver: Pubkey, fee_ratio: u64) -> Result<()> {
     msg!("Initalizing...");
 
     ctx.accounts.admin.signer = signer;
     ctx.accounts.admin.fee_receiver = fee_receiver;
+    ctx.accounts.admin.fee_ratio = fee_ratio;
 
     Ok(())
 }

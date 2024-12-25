@@ -14,11 +14,12 @@ pub struct UpdateAdmin<'info> {
     pub admin: Account<'info, Admin>,
 }
 
-pub fn update_admin(ctx: Context<UpdateAdmin>, signer: Pubkey, fee_receiver: Pubkey) -> Result<()> {
+pub fn update_admin(ctx: Context<UpdateAdmin>, signer: Pubkey, fee_receiver: Pubkey, fee_ratio: u64) -> Result<()> {
     msg!("Updating admin...");
 
     ctx.accounts.admin.signer = signer;
     ctx.accounts.admin.fee_receiver = fee_receiver;
-
+    ctx.accounts.admin.fee_ratio = fee_ratio;
+    
     Ok(())
 }

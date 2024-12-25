@@ -16,20 +16,22 @@ pub mod task_trader {
         ctx: Context<Initialize>,
         signer: Pubkey,
         fee_receiver: Pubkey,
+        fee_ratio: u64,
     ) -> Result<()> {
         msg!("Initializing...");
 
-        instructions::initialize::initialize(ctx, signer, fee_receiver)
+        instructions::initialize::initialize(ctx, signer, fee_receiver, fee_ratio)
     }
 
     pub fn update_admin(
         ctx: Context<UpdateAdmin>,
         signer: Pubkey,
         fee_receiver: Pubkey,
+        fee_ratio: u64,
     ) -> Result<()> {
         msg!("Updating admin...");
 
-        instructions::update_admin::update_admin(ctx, signer, fee_receiver)
+        instructions::update_admin::update_admin(ctx, signer, fee_receiver, fee_ratio)
     }
 
     pub fn create_task(

@@ -143,7 +143,7 @@ export async function getTestContext(): Promise<TestContext> {
 
   // Initialize admin
   await program.methods
-    .initialize(wallet.publicKey, wallet.publicKey)
+    .initialize(wallet.publicKey, wallet.publicKey, new anchor.BN(1))
     .accounts({
       payer: wallet.publicKey,
       admin: admin,
