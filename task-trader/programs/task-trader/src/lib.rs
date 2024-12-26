@@ -6,7 +6,7 @@ mod utils;
 use anchor_lang::prelude::*;
 use instructions::*;
 
-declare_id!("EuAJYHz5U4EJE9bSf8Um6K1X6UFyTa1SmbRyweg7hjDH");
+declare_id!("DSyKrLRc83jxeEUiUJdsyePRcreQ2dkXj3vdpggH8wd1");
 
 #[program]
 pub mod task_trader {
@@ -41,7 +41,6 @@ pub mod task_trader {
         taker_num: u64,
         coin_mint: Pubkey, // usdt, mai
         rewards: u64,      // mai
-        expire_time: i64,
     ) -> Result<()> {
         msg!("Creating Task Trader...");
 
@@ -52,38 +51,12 @@ pub mod task_trader {
             taker_num,
             coin_mint,
             rewards,
-            expire_time,
         )
     }
 
     pub fn apply_task(ctx: Context<ApplyTask>, inviter: Option<Pubkey>) -> Result<()> {
         msg!("Applying Task Trader...");
         instructions::apply_task::apply_task(ctx, inviter)
-    }
-
-    pub fn approve_application(ctx: Context<ApproveApplication>) -> Result<()> {
-        msg!("Approving Application...");
-        instructions::approve_application::approve_application(ctx)
-    }
-
-    pub fn reject_application(ctx: Context<RejectApplication>) -> Result<()> {
-        msg!("Rejecting Application...");
-        instructions::reject_application::reject_application(ctx)
-    }
-
-    pub fn submit_acceptance(ctx: Context<SubmitAcceptance>) -> Result<()> {
-        msg!("Submitting Acceptance...");
-        instructions::submit_acceptance::submit_acceptance(ctx)
-    }
-
-    pub fn open_task(ctx: Context<SetupTaskState>) -> Result<()> {
-        msg!("Open Task ...");
-        instructions::setup_task_state::open_task(ctx)
-    }
-
-    pub fn close_task(ctx: Context<SetupTaskState>) -> Result<()> {
-        msg!("Close Task ...");
-        instructions::setup_task_state::close_task(ctx)
     }
 
     pub fn verify_task_application(
@@ -106,4 +79,5 @@ pub mod task_trader {
         msg!("Updating task support coin...");
         instructions::update_task_support_coin::update_task_support_coin(ctx, coin_mints)
     }
+
 }

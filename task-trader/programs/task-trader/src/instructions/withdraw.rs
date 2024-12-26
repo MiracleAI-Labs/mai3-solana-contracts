@@ -140,6 +140,10 @@ pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
                     .ok_or(TaskTraderError::NumericalOverflow)?;
             }
         }
+    } else if task_info.rewards > 0 {
+        total_fee = total_fee
+            .checked_add(task_info.rewards)
+            .ok_or(TaskTraderError::NumericalOverflow)?;
     }
 
     // Transfer total fee to fee receiver

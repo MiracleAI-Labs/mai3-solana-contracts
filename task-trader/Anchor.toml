@@ -14,7 +14,7 @@ task_trader = "EuAJYHz5U4EJE9bSf8Um6K1X6UFyTa1SmbRyweg7hjDH"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

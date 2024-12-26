@@ -8,11 +8,7 @@ use {
 
 use crate::{
     errors::TaskTraderError,
-    state::{
-        admin::Admin,
-        support_coin::SupportCoin,
-        task_info::{TaskInfo, TaskState},
-    },
+    state::{admin::Admin, support_coin::SupportCoin, task_info::TaskInfo},
     utils::token_utils,
 };
 
@@ -94,9 +90,8 @@ pub fn create_task(
     task_id: u64,
     task_amount: u64,
     taker_num: u64,
-    coin_mint: Pubkey, // usdt, mai
-    rewards: u64,      // mai
-    expire_time: i64,
+    coin_mint: Pubkey,
+    rewards: u64,
 ) -> Result<()> {
     msg!("Creating task...");
 
@@ -106,11 +101,6 @@ pub fn create_task(
     if !ctx.accounts.support_coin.coin_mints.contains(&coin_mint) {
         return Err(TaskTraderError::InvalidCoinMint.into());
     }
-    let current_time = Clock::get()?.unix_timestamp;
-    require!(
-        expire_time > current_time,
-        TaskTraderError::InvalidExpireTime
-    );
 
     token_utils::transfer_token(
         ctx.accounts.token_program.to_account_info(),
@@ -127,9 +117,6 @@ pub fn create_task(
     task_info.taker_num = taker_num;
     task_info.coin_mint = coin_mint;
     task_info.rewards = rewards;
-    task_info.expire_time = expire_time;
-    task_info.state = TaskState::Open;
-    task_info.approved_num = 0;
     task_info.requester = ctx.accounts.user.key();
 
     Ok(())

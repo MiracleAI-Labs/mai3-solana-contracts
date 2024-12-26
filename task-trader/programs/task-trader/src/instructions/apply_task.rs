@@ -1,15 +1,10 @@
-use crate::errors::TaskTraderError;
 use crate::state::task_application::TaskApplication;
-use crate::state::task_info::{TaskInfo, TaskState};
+use crate::state::task_info::TaskInfo;
 use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct ApplyTask<'info> {
-    #[account(
-        mut,
-        constraint = task_info.state == TaskState::Open @ TaskTraderError::InvalidTaskState,
-        constraint = Clock::get()?.unix_timestamp < task_info.expire_time @ TaskTraderError::TaskExpired
-    )]
+    #[account(mut)]
     pub task_info: Account<'info, TaskInfo>,
 
     #[account(
@@ -34,7 +29,6 @@ pub fn apply_task(ctx: Context<ApplyTask>, inviter: Option<Pubkey>) -> Result<()
     let task_info = &ctx.accounts.task_info;
     let task_application = &mut ctx.accounts.task_application;
     let applicant_key = ctx.accounts.applicant.key();
-
     task_application.task_id = task_info.task_id;
     task_application.applicant = applicant_key;
     if let Some(inviter) = inviter {
@@ -42,7 +36,5 @@ pub fn apply_task(ctx: Context<ApplyTask>, inviter: Option<Pubkey>) -> Result<()
             task_application.inviter = inviter;
         }
     }
-    task_application.apply_time = Clock::get()?.unix_timestamp;
-
     Ok(())
 }
